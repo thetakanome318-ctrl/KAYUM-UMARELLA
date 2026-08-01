@@ -1,0 +1,6 @@
+{
+  "name": "Perang Pohon Baguala Support by the tukimen",
+  "description": "Aplikasi monitoring Perang Pohon Baguala Support by the tukimen - pemangkasan ROW pohon penyulang listrik, target bulanan KMS, realisasi gawang, serta tren temuan.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
