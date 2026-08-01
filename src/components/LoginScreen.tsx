@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { TreePine, Lock, User, KeyRound, AlertCircle, Eye, EyeOff, Zap, RefreshCw, ShieldAlert } from 'lucide-react';
 import { getUsersList } from '../utils/userStorage';
 import { UserAccount } from '../types';
+import bgPlnWorker from '../assets/images/pln_tree_trimming_1785589720078.jpg';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: { username: string; name: string; role: string }) => void;
@@ -137,32 +138,45 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden">
+      {/* Background PLN Worker Tree Trimming Image */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src={bgPlnWorker}
+          alt="Petugas PLN sedang pemangkasan pohon"
+          referrerPolicy="no-referrer"
+          className="w-full h-full object-cover object-center opacity-30 scale-105 filter brightness-90 saturate-110"
+        />
+        {/* Vignette & Gradient Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-slate-950/60" />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-transparent to-slate-950/90" />
+      </div>
+
       {/* Background Decorative Gradients */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-10 right-10 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none z-0" />
+      <div className="absolute bottom-10 right-10 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none z-0" />
 
       <div className="max-w-md w-full relative z-10">
         {/* Logo & Header */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 mb-3 shadow-lg shadow-emerald-500/5">
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-slate-900/90 border border-emerald-500/40 text-emerald-400 mb-3 shadow-xl shadow-emerald-500/10 backdrop-blur-md">
             <TreePine className="h-9 w-9" />
           </div>
           <div className="flex items-center justify-center space-x-2 mb-1">
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 backdrop-blur-md">
               <Zap className="w-3 h-3 mr-1 text-emerald-400" />
               Support by the tukimen
             </span>
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-100 tracking-tight">
+          <h1 className="text-2xl font-extrabold text-slate-100 tracking-tight drop-shadow-md">
             Perang Pohon Baguala
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Masuk untuk mengakses dashboard pemantauan pangkas pohon dan target KMS
+          <p className="text-xs text-slate-300 mt-1 drop-shadow">
+            Sistem Pemantauan Pemangkasan Pohon &amp; Target KMS Petugas PLN Lapangan
           </p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+        <div className="bg-slate-900/85 border border-slate-800/90 rounded-2xl p-6 sm:p-8 shadow-2xl backdrop-blur-md">
           <form onSubmit={handleLogin} className="space-y-4">
             {error && (
               <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-start space-x-2">
