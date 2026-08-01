@@ -151,6 +151,21 @@ export default function App() {
     return calculateKPIStats(filteredRecords);
   }, [filteredRecords]);
 
+  // Save state tracking
+  const [lastSaveTime, setLastSaveTime] = useState<string | null>(() => {
+    return new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  });
+
+  const handleManualSave = () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      setLastSaveTime(nowTime);
+    } catch (e) {
+      console.error('Failed to save data to storage:', e);
+    }
+  };
+
   // Modal Handlers
   const handleOpenAddModal = () => {
     setEditingRecord(null);
@@ -592,6 +607,8 @@ export default function App() {
         onResetData={handleResetData}
         onExportCsv={handleExportCsv}
         onDeleteAllData={handleDeleteAllData}
+        onSaveData={handleManualSave}
+        lastSaveTime={lastSaveTime}
         totalRecordsCount={records.length}
         currentUser={currentUser}
         onLogout={handleLogout}
