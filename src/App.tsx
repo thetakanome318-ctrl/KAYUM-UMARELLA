@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ROWRecord, FilterState, ViewTab } from './types';
 import { INITIAL_RECORDS } from './data/mockData';
 import { calculateKPIStats, formatBulan } from './utils/calculations';
@@ -9,7 +9,8 @@ import {
   saveRecordToCloud, 
   deleteRecordFromCloud, 
   syncAllRecordsToCloud, 
-  syncAllTargetsToCloud 
+  syncAllTargetsToCloud,
+  clearAllCloudRecords
 } from './lib/firebase';
 import { Header } from './components/Header';
 import { KPICards } from './components/KPICards';
@@ -79,21 +80,13 @@ export default function App() {
 
   // Subscribe to Cloud Firestore Real-time Records & Monthly Targets
   useEffect(() => {
-    let initialRecordsSeeded = false;
-    let initialTargetsSeeded = false;
-
     const unsubscribeRecords = subscribeRecords((cloudRecords) => {
-      if (cloudRecords && cloudRecords.length > 0) {
-        setRecords(cloudRecords);
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudRecords));
-        } catch (e) {
-          console.error('Error caching cloud records:', e);
-        }
-      } else if (!initialRecordsSeeded) {
-        // Seed default initial records to Cloud Firestore if Cloud collection is empty
-        initialRecordsSeeded = true;
-        syncAllRecordsToCloud(records.length > 0 ? records : INITIAL_RECORDS);
+      // Always sync state with Cloud Firestore (whether records exist or is empty [])
+      setRecords(cloudRecords || []);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudRecords || []));
+      } catch (e) {
+        console.error('Error caching cloud records:', e);
       }
     });
 
@@ -102,9 +95,6 @@ export default function App() {
         const merged = { ...DEFAULT_MONTHLY_TARGETS, ...cloudTargetsMap };
         setMonthlyTargetsMap(merged);
         saveMonthlyTargetsMap(merged);
-      } else if (!initialTargetsSeeded) {
-        initialTargetsSeeded = true;
-        syncAllTargetsToCloud(monthlyTargetsMap);
       }
     });
 
@@ -266,31 +256,37 @@ export default function App() {
 
   const handleDeleteAllData = async () => {
     if (records.length === 0) {
-      alert('Tidak ada data monitoring untuk dihapus.');
+      alert('Data di Cloud Firestore dan lokal sudah kosong.');
       return;
     }
     if (
       window.confirm(
-        `Apakah Anda YAKIN ingin MENGHAPUS SEMUA ${records.length} data monitoring ROW? Seluruh data pada tabel akan dikosongkan secara langsung!`
+        `Apakah Anda YAKIN ingin MENGHAPUS SEMUA ${records.length} data monitoring ROW? Data pada Cloud Firestore akan dikosongkan secara langsung untuk semua pengguna!`
       )
     ) {
-      const prevRecords = [...records];
       setRecords([]);
-      for (const r of prevRecords) {
-        try {
-          await deleteRecordFromCloud(r.id);
-        } catch (e) {
-          console.error('Failed to delete doc:', e);
-        }
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+        await clearAllCloudRecords();
+        const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setLastSaveTime(nowTime);
+      } catch (e) {
+        console.error('Failed to clear Cloud Firestore:', e);
       }
     }
   };
 
   const handleResetData = async () => {
-    if (window.confirm('Reset seluruh data ke sample default awal?')) {
+    if (window.confirm('Isi ulang Cloud Firestore dengan data sample default awal PLN?')) {
       setRecords(INITIAL_RECORDS);
-      localStorage.removeItem(STORAGE_KEY);
-      await syncAllRecordsToCloud(INITIAL_RECORDS);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_RECORDS));
+        await syncAllRecordsToCloud(INITIAL_RECORDS);
+        const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setLastSaveTime(nowTime);
+      } catch (e) {
+        console.error('Failed to reset sample data to cloud:', e);
+      }
     }
   };
 

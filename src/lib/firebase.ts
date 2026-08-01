@@ -106,6 +106,24 @@ export async function syncAllRecordsToCloud(records: ROWRecord[]): Promise<void>
   }
 }
 
+// Clear all records from Cloud Firestore
+export async function clearAllCloudRecords(): Promise<void> {
+  try {
+    const recordsRef = collection(db, RECORDS_COLLECTION);
+    const snapshot = await getDocs(recordsRef);
+    if (snapshot.empty) return;
+    
+    const batch = writeBatch(db);
+    snapshot.forEach((docSnap) => {
+      batch.delete(docSnap.ref);
+    });
+    await batch.commit();
+  } catch (error) {
+    console.error('Failed to clear all cloud records:', error);
+    throw error;
+  }
+}
+
 // Save a monthly target item to Cloud
 export async function saveMonthlyTargetToCloud(target: MonthlyTargetItem): Promise<void> {
   try {
