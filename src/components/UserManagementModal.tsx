@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, UserPlus, Shield, User, KeyRound, Trash2, CheckCircle2, AlertCircle, Eye, EyeOff, Users, RefreshCw } from 'lucide-react';
-import { UserAccount } from '../types';
+import { UserAccount, UserRole } from '../types';
 import { getUsersList, addUser, deleteUser, resetUsersToDefault } from '../utils/userStorage';
 
 interface UserManagementModalProps {
@@ -22,7 +22,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
   const [newUsername, setNewUsername] = useState('');
   const [newName, setNewName] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [newRole, setNewRole] = useState<'Admin System' | 'Supervisor' | 'Operator' | 'Petugas Lapangan'>('Operator');
+  const [newRole, setNewRole] = useState<UserRole>('Operator');
 
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -74,7 +74,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
   };
 
   const handleResetUsers = () => {
-    if (window.confirm('Reset daftar pengguna ke akun default bawaan (admin, supervisor, operator)?')) {
+    if (window.confirm('Reset daftar pengguna ke akun default bawaan (admin, manager, koordinator, teamleader, operator)?')) {
       resetUsersToDefault();
       refreshList();
       setNotification({ type: 'success', message: 'Daftar pengguna berhasil di-reset ke default.' });
@@ -89,7 +89,11 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     switch (role) {
       case 'Admin System':
         return 'bg-purple-500/10 text-purple-400 border-purple-500/30';
-      case 'Supervisor':
+      case 'Manager':
+        return 'bg-sky-500/10 text-sky-400 border-sky-500/30';
+      case 'Koordinator':
+        return 'bg-teal-500/10 text-teal-400 border-teal-500/30';
+      case 'Team Leader':
         return 'bg-blue-500/10 text-blue-400 border-blue-500/30';
       default:
         return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
@@ -255,8 +259,10 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                     className="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-emerald-500 font-medium"
                   >
                     <option value="Operator">Operator (Input &amp; Edit Data)</option>
-                    <option value="Petugas Lapangan">Petugas Lapangan (View &amp; Form)</option>
-                    <option value="Supervisor">Supervisor (Monitor &amp; Export)</option>
+                    <option value="Petugas Lapangan">Petugas Lapangan (Input &amp; Form)</option>
+                    <option value="Team Leader">Team Leader (Akses Input &amp; Monitoring)</option>
+                    <option value="Manager">Manager (Status Monitoring - Read Only)</option>
+                    <option value="Koordinator">Koordinator (Status Monitoring - Read Only)</option>
                     <option value="Admin System">Admin System (Akses Penuh + User Admin)</option>
                   </select>
                 </div>

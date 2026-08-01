@@ -15,6 +15,7 @@ import {
   Building2,
   HardDriveDownload,
   Cloud,
+  Eye,
 } from 'lucide-react';
 import powerLinesBg from '../assets/images/power_lines_bg_1785580144298.jpg';
 
@@ -45,6 +46,8 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [showSaveToast, setShowSaveToast] = useState(false);
   const isAdmin = currentUser?.role === 'Admin System' || currentUser?.username === 'admin';
+  const isReadOnly = currentUser?.role === 'Manager' || currentUser?.role === 'Koordinator';
+  const canInput = !isReadOnly;
 
   const handleSaveClick = () => {
     if (onSaveData) {
@@ -152,24 +155,33 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
           {/* Kelompok Aksi Utama Data */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Tombol Simpan Data */}
-            <button
-              onClick={handleSaveClick}
-              title="Simpan Data ke LocalStorage & Backup Cadangan"
-              className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 rounded-lg shadow-md shadow-blue-950/40 transition-all flex items-center space-x-1.5 border border-blue-400/30 group"
-            >
-              <Save className="w-4 h-4 text-blue-200 group-hover:scale-110 transition-transform" />
-              <span>Simpan Data</span>
-            </button>
+            {canInput ? (
+              <>
+                {/* Tombol Simpan Data */}
+                <button
+                  onClick={handleSaveClick}
+                  title="Simpan Data ke LocalStorage & Backup Cadangan"
+                  className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 rounded-lg shadow-md shadow-blue-950/40 transition-all flex items-center space-x-1.5 border border-blue-400/30 group"
+                >
+                  <Save className="w-4 h-4 text-blue-200 group-hover:scale-110 transition-transform" />
+                  <span>Simpan Data</span>
+                </button>
 
-            {/* Tombol Tambah Data */}
-            <button
-              onClick={onOpenModal}
-              className="px-3 py-1.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 active:bg-emerald-500 rounded-lg shadow-md shadow-emerald-950/50 transition-all flex items-center space-x-1.5 border border-emerald-300 group"
-            >
-              <Plus className="w-4 h-4 stroke-[3] group-hover:rotate-90 transition-transform" />
-              <span>Tambah Data Baru</span>
-            </button>
+                {/* Tombol Tambah Data */}
+                <button
+                  onClick={onOpenModal}
+                  className="px-3 py-1.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 active:bg-emerald-500 rounded-lg shadow-md shadow-emerald-950/50 transition-all flex items-center space-x-1.5 border border-emerald-300 group"
+                >
+                  <Plus className="w-4 h-4 stroke-[3] group-hover:rotate-90 transition-transform" />
+                  <span>Tambah Data Baru</span>
+                </button>
+              </>
+            ) : (
+              <div className="px-3 py-1.5 text-xs font-bold text-sky-300 bg-sky-950/60 rounded-lg border border-sky-500/40 flex items-center space-x-1.5">
+                <Eye className="w-4 h-4 text-sky-400 animate-pulse" />
+                <span>Status Monitoring (Tidak Bisa Tambah Inputan)</span>
+              </div>
+            )}
 
             {/* Tombol Export Excel / CSV */}
             <button
@@ -195,24 +207,28 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            <button
-              onClick={onResetData}
-              title="Reset Data ke Default Sample"
-              className="px-2.5 py-1.5 text-xs font-medium text-slate-300 bg-slate-900/80 hover:bg-slate-800 rounded-lg transition border border-slate-800 flex items-center space-x-1.5"
-            >
-              <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
-              <span className="hidden sm:inline">Reset Sample</span>
-            </button>
+            {canInput && (
+              <>
+                <button
+                  onClick={onResetData}
+                  title="Reset Data ke Default Sample"
+                  className="px-2.5 py-1.5 text-xs font-medium text-slate-300 bg-slate-900/80 hover:bg-slate-800 rounded-lg transition border border-slate-800 flex items-center space-x-1.5"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="hidden sm:inline">Reset Sample</span>
+                </button>
 
-            {onDeleteAllData && (
-              <button
-                onClick={onDeleteAllData}
-                title="Hapus Semua Data Monitoring"
-                className="px-2.5 py-1.5 text-xs font-medium text-rose-300 bg-rose-950/30 hover:bg-rose-900/50 rounded-lg transition border border-rose-500/30 flex items-center space-x-1.5"
-              >
-                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                <span className="hidden lg:inline">Hapus Semua</span>
-              </button>
+                {onDeleteAllData && (
+                  <button
+                    onClick={onDeleteAllData}
+                    title="Hapus Semua Data Monitoring"
+                    className="px-2.5 py-1.5 text-xs font-medium text-rose-300 bg-rose-950/30 hover:bg-rose-900/50 rounded-lg transition border border-rose-500/30 flex items-center space-x-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                    <span className="hidden lg:inline">Hapus Semua</span>
+                  </button>
+                )}
+              </>
             )}
 
             {onLogout && (

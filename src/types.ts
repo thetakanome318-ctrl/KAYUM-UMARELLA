@@ -1,9 +1,11 @@
+export type UserRole = 'Admin System' | 'Team Leader' | 'Operator' | 'Petugas Lapangan' | 'Manager' | 'Koordinator';
+
 export interface UserAccount {
   id: string;
   username: string;
   password: string;
   name: string;
-  role: 'Admin System' | 'Supervisor' | 'Operator' | 'Petugas Lapangan';
+  role: UserRole;
   createdAt?: string;
 }
 

@@ -1,6 +1,6 @@
-import { UserAccount } from '../types';
+import { UserAccount, UserRole } from '../types';
 
-const USERS_STORAGE_KEY = 'row_monitoring_users_list_v2';
+const USERS_STORAGE_KEY = 'row_monitoring_users_list_v3';
 
 export const DEFAULT_USERS: UserAccount[] = [
   {
@@ -12,11 +12,27 @@ export const DEFAULT_USERS: UserAccount[] = [
     createdAt: '2026-01-01T08:00:00Z',
   },
   {
-    id: 'usr-supervisor-01',
-    username: 'supervisor',
-    password: 'supervisor123',
-    name: 'Supervisor Jaringan 20kV',
-    role: 'Supervisor',
+    id: 'usr-manager-01',
+    username: 'manager',
+    password: 'manager123',
+    name: 'Manager ULP Baguala',
+    role: 'Manager',
+    createdAt: '2026-01-01T08:00:00Z',
+  },
+  {
+    id: 'usr-koordinator-01',
+    username: 'koordinator',
+    password: 'koordinator123',
+    name: 'Koordinator K3 & ROW',
+    role: 'Koordinator',
+    createdAt: '2026-01-01T08:00:00Z',
+  },
+  {
+    id: 'usr-teamleader-01',
+    username: 'teamleader',
+    password: 'teamleader123',
+    name: 'Team Leader Jaringan 20kV',
+    role: 'Team Leader',
     createdAt: '2026-01-01T08:00:00Z',
   },
   {
@@ -38,7 +54,11 @@ export function getUsersList(): UserAccount[] {
     }
     const parsed = JSON.parse(saved);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
+      // Map any old 'Supervisor' role to 'Team Leader'
+      return parsed.map((u) => ({
+        ...u,
+        role: (u.role as string) === 'Supervisor' ? 'Team Leader' : u.role,
+      }));
     }
   } catch (e) {
     console.error('Error loading users list from localStorage:', e);
@@ -58,7 +78,7 @@ export function addUser(newUser: {
   username: string;
   password: string;
   name: string;
-  role: 'Admin System' | 'Supervisor' | 'Operator' | 'Petugas Lapangan';
+  role: UserRole;
 }): { success: boolean; message: string; user?: UserAccount } {
   const currentUsers = getUsersList();
   const trimmedUsername = newUser.username.trim().toLowerCase();
@@ -86,7 +106,7 @@ export function addUser(newUser: {
 
   return {
     success: true,
-    message: `User baru "${createdUser.name}" (${createdUser.username}) berhasil ditambahkan.`,
+    message: `User baru "${createdUser.name}" (${createdUser.username}) dengan role "${createdUser.role}" berhasil ditambahkan.`,
     user: createdUser,
   };
 }
