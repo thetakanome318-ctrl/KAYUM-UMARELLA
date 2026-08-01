@@ -72,12 +72,9 @@ export const DataTable: React.FC<DataTableProps> = ({
                   key={r.id}
                   className={`hover:bg-slate-50 transition ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}
                 >
-                  {/* Bulan & Tanggal */}
+                  {/* Bulan & Tahun */}
                   <td className="py-3 px-3 whitespace-nowrap">
-                    <div className="font-semibold text-slate-700">{formatBulan(r.bulan)}</div>
-                    {r.tanggal && (
-                      <div className="text-[10px] text-slate-400 font-normal">{r.tanggal}</div>
-                    )}
+                    <div className="font-semibold text-slate-800">{formatBulan(r.bulan)}</div>
                   </td>
 
                   {/* Penyulang */}

@@ -382,18 +382,18 @@ export const PENYULANG_LIST: string[] = [];
 export const YEAR_LIST: number[] = [2024, 2025, 2026, 2027, 2028, 2029, 2030];
 
 export const BULAN_SIMPLE_LIST = [
-  { value: '01', label: '01 - Januari', monthKe: 1 },
-  { value: '02', label: '02 - Februari', monthKe: 2 },
-  { value: '03', label: '03 - Maret', monthKe: 3 },
-  { value: '04', label: '04 - April', monthKe: 4 },
-  { value: '05', label: '05 - Mei', monthKe: 5 },
-  { value: '06', label: '06 - Juni', monthKe: 6 },
-  { value: '07', label: '07 - Juli', monthKe: 7 },
-  { value: '08', label: '08 - Agustus', monthKe: 8 },
-  { value: '09', label: '09 - September', monthKe: 9 },
-  { value: '10', label: '10 - Oktober', monthKe: 10 },
-  { value: '11', label: '11 - November', monthKe: 11 },
-  { value: '12', label: '12 - Desember', monthKe: 12 }
+  { value: '01', label: 'Januari', monthKe: 1 },
+  { value: '02', label: 'Februari', monthKe: 2 },
+  { value: '03', label: 'Maret', monthKe: 3 },
+  { value: '04', label: 'April', monthKe: 4 },
+  { value: '05', label: 'Mei', monthKe: 5 },
+  { value: '06', label: 'Juni', monthKe: 6 },
+  { value: '07', label: 'Juli', monthKe: 7 },
+  { value: '08', label: 'Agustus', monthKe: 8 },
+  { value: '09', label: 'September', monthKe: 9 },
+  { value: '10', label: 'Oktober', monthKe: 10 },
+  { value: '11', label: 'November', monthKe: 11 },
+  { value: '12', label: 'Desember', monthKe: 12 }
 ];
 
 export const BULAN_LIST = [

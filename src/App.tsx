@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ROWRecord, FilterState, ViewTab } from './types';
 import { INITIAL_RECORDS } from './data/mockData';
 import { calculateKPIStats, formatBulan } from './utils/calculations';
+import { getMonthlyTargetsMap, MonthlyTargetItem } from './utils/targetStorage';
 import { Header } from './components/Header';
 import { KPICards } from './components/KPICards';
 import { FilterBar } from './components/FilterBar';
@@ -12,13 +13,18 @@ import { EntryFormModal } from './components/EntryFormModal';
 import { AiAdvisor } from './components/AiAdvisor';
 import { LoginScreen } from './components/LoginScreen';
 import { UserManagementModal } from './components/UserManagementModal';
+import { TargetManagerModal } from './components/TargetManagerModal';
 import { CalendarView } from './components/CalendarView';
 import { Plus, Clock, FileSpreadsheet, Sparkles, CheckCircle2 } from 'lucide-react';
+import bgImage from './assets/images/power_lines_bg_1785580144298.jpg';
 
 const STORAGE_KEY = 'row_tree_monitoring_records_v1';
 const AUTH_KEY = 'row_monitoring_auth_user_v1';
 
 export default function App() {
+  // Monthly Targets Map state
+  const [monthlyTargetsMap, setMonthlyTargetsMap] = useState<Record<string, MonthlyTargetItem>>(() => getMonthlyTargetsMap());
+
   // Authentication State
   const [currentUser, setCurrentUser] = useState<{ username: string; name: string; role: string } | null>(() => {
     try {
@@ -86,7 +92,12 @@ export default function App() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [isTargetModalOpen, setIsTargetModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ROWRecord | null>(null);
+
+  const handleTargetsUpdated = () => {
+    setMonthlyTargetsMap(getMonthlyTargetsMap());
+  };
 
   // Unique Penyulang derived from current records
   const availablePenyulang = useMemo(() => {
@@ -146,10 +157,10 @@ export default function App() {
     });
   }, [records, filter]);
 
-  // Calculate KPI Stats for filtered records
+  // Calculate KPI Stats for filtered records with manual monthly targets
   const kpiStats = useMemo(() => {
-    return calculateKPIStats(filteredRecords);
-  }, [filteredRecords]);
+    return calculateKPIStats(filteredRecords, monthlyTargetsMap, filter);
+  }, [filteredRecords, monthlyTargetsMap, filter]);
 
   // Save state tracking
   const [lastSaveTime, setLastSaveTime] = useState<string | null>(() => {
@@ -600,7 +611,12 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 font-sans flex flex-col">
+    <div 
+      className="min-h-screen text-slate-900 font-sans flex flex-col relative bg-cover bg-center bg-fixed"
+      style={{
+        backgroundImage: `linear-gradient(to bottom, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.90)), url(${bgImage})`,
+      }}
+    >
       {/* Top Header */}
       <Header
         onOpenModal={handleOpenAddModal}
@@ -619,7 +635,10 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         
         {/* KPI Cards Bar */}
-        <KPICards stats={kpiStats} />
+        <KPICards 
+          stats={kpiStats} 
+          onOpenTargetModal={() => setIsTargetModalOpen(true)} 
+        />
 
         {/* Filter Bar & Navigation Tabs */}
         <FilterBar
@@ -642,7 +661,7 @@ export default function App() {
             <TrendCharts records={filteredRecords} />
 
             {/* Quick Section Preview: Recent Timeline */}
-            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+            <div className="bg-white/95 backdrop-blur-md rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -650,7 +669,7 @@ export default function App() {
                     Timeline ROW Pohon Terkini
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Progres pemangkasan pohon per penyulang & section berdasarkan periode bulanan
+                    Progres pemangkasan pohon per penyulang &amp; section berdasarkan periode bulanan
                   </p>
                 </div>
                 <button
@@ -695,17 +714,17 @@ export default function App() {
 
         {activeTab === 'table' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between bg-white/90 backdrop-blur-md p-4 rounded-xl border border-slate-200 shadow-sm">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Data Tabel Temuan & Realisasi ROW</h3>
-                <p className="text-xs text-slate-500">Daftar lengkap hasil temuan, target KMS, realisasi gawang, dan status kendala</p>
+                <h3 className="text-base font-bold text-slate-900">Data Tabel Temuan &amp; Realisasi ROW</h3>
+                <p className="text-xs text-slate-500">Daftar lengkap hasil temuan, realisasi KMS &amp; gawang, serta status kendala</p>
               </div>
               <button
                 onClick={handleOpenAddModal}
                 className="px-3 py-1.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow-xs transition border border-emerald-300 flex items-center gap-1"
               >
                 <Plus className="w-4 h-4" />
-                <span>Tambah Baris</span>
+                <span>Tambah Realisasi</span>
               </button>
             </div>
 
@@ -721,7 +740,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-slate-400 border-t border-slate-800 text-xs py-4 mt-8">
+      <footer className="bg-slate-950/90 backdrop-blur-md text-slate-400 border-t border-slate-800/80 text-xs py-4 mt-8">
         <div className="max-w-7xl mx-auto px-4 text-center sm:flex sm:items-center sm:justify-between">
           <p>© 2026 Monitoring ROW Pohon Penyulang — Sistem Pemantauan Jaringan Distribusi 20kV</p>
           <div className="mt-2 sm:mt-0 flex justify-center space-x-4 text-slate-400">
@@ -745,6 +764,14 @@ export default function App() {
         isOpen={isUserModalOpen}
         onClose={() => setIsUserModalOpen(false)}
         currentUser={currentUser}
+      />
+
+      {/* Target Manager Modal */}
+      <TargetManagerModal
+        isOpen={isTargetModalOpen}
+        onClose={() => setIsTargetModalOpen(false)}
+        onTargetsUpdated={handleTargetsUpdated}
+        selectedYear={filter.tahun}
       />
     </div>
   );

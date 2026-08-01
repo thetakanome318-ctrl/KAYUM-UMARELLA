@@ -246,7 +246,7 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Tahun Monitoring */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
@@ -268,7 +268,8 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
 
               {/* Bulan Monitoring */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                  <CalendarDays className="w-3.5 h-3.5 text-emerald-600" />
                   Bulan <span className="text-rose-500">*</span>
                 </label>
                 <select
@@ -282,19 +283,6 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
                     </option>
                   ))}
                 </select>
-              </div>
-
-              {/* Tanggal Pelaksanaan / Temuan */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Tanggal Exact <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={formData.tanggal || ''}
-                  onChange={(e) => handleDateChange(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium text-slate-800"
-                />
               </div>
             </div>
 
@@ -328,50 +316,49 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
               </div>
             </div>
 
-            {/* Target & Realisasi KMS / Gawang Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Target Bulanan (KMS) <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={formData.targetKms ?? 0}
-                  onChange={(e) => setFormData({ ...formData, targetKms: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 font-bold"
-                />
-                <span className="text-[10px] text-slate-500 mt-0.5 block">Panjang target (KMS)</span>
+            {/* Realisasi KMS / Gawang Row (Target KMS diatur manual di Dashboard) */}
+            <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-200/80 space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-emerald-900 border-b border-emerald-200/60 pb-1.5">
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                  Form Input Hasil Realisasi Pekerjaan ROW
+                </span>
+                <span className="text-[10px] bg-emerald-200/70 text-emerald-900 px-2 py-0.5 rounded-full font-semibold">
+                  Target Bulanan Diatur di Dashboard
+                </span>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Realisasi KMS <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={formData.realisasiKms ?? 0}
-                  onChange={(e) => setFormData({ ...formData, realisasiKms: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-emerald-700 font-bold"
-                />
-                <span className="text-[10px] text-slate-500 mt-0.5 block">KMS terealisasi</span>
-              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-800 mb-1">
+                    Realisasi KMS <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    placeholder="e.g. 2.5"
+                    value={formData.realisasiKms ?? 0}
+                    onChange={(e) => setFormData({ ...formData, realisasiKms: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-emerald-700 font-bold"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">KMS panjang lintasan terealisasi</span>
+                </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Realisasi Gawang <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.realisasiGawang ?? 0}
-                  onChange={(e) => setFormData({ ...formData, realisasiGawang: parseInt(e.target.value, 10) || 0 })}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-cyan-700 font-bold"
-                />
-                <span className="text-[10px] text-slate-500 mt-0.5 block">Jumlah gawang bebas</span>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-800 mb-1">
+                    Realisasi Gawang <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 15"
+                    value={formData.realisasiGawang ?? 0}
+                    onChange={(e) => setFormData({ ...formData, realisasiGawang: parseInt(e.target.value, 10) || 0 })}
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-cyan-700 font-bold"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">Jumlah gawang (span) bebas dahan</span>
+                </div>
               </div>
             </div>
 

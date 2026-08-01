@@ -7,23 +7,24 @@ import {
   Ruler, 
   Layers, 
   TrendingUp, 
-  AlertTriangle 
+  Target
 } from 'lucide-react';
 import { KPIStats } from '../types';
 import { formatNumber } from '../utils/calculations';
 
 interface KPICardsProps {
   stats: KPIStats;
+  onOpenTargetModal?: () => void;
 }
 
-export const KPICards: React.FC<KPICardsProps> = ({ stats }) => {
+export const KPICards: React.FC<KPICardsProps> = ({ stats, onOpenTargetModal }) => {
   return (
     <div className="space-y-4">
       {/* Main KPI Grid - 4 Primary Cards Required */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* CARD 1: JUMLAH TEMUAN */}
-        <div id="kpi-card-temuan" className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm hover:shadow transition">
+        <div id="kpi-card-temuan" className="bg-white/95 backdrop-blur-md rounded-xl p-4 border border-slate-200 shadow-sm hover:shadow transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
               Jumlah Temuan
@@ -54,7 +55,7 @@ export const KPICards: React.FC<KPICardsProps> = ({ stats }) => {
               />
             </div>
             <p className="text-[11px] text-slate-500 mt-1">
-              {stats.totalTemuan - stats.totalRealisasiTemuan} temuan belum dieksekusi
+              {Math.max(0, stats.totalTemuan - stats.totalRealisasiTemuan)} temuan belum dieksekusi
             </p>
             {(stats.totalLuarTemuan || 0) > 0 && (
               <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
@@ -71,7 +72,7 @@ export const KPICards: React.FC<KPICardsProps> = ({ stats }) => {
         </div>
 
         {/* CARD 2: PERLU PADAM */}
-        <div id="kpi-card-padam" className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm hover:shadow transition">
+        <div id="kpi-card-padam" className="bg-white/95 backdrop-blur-md rounded-xl p-4 border border-slate-200 shadow-sm hover:shadow transition">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1.5">
               <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
@@ -99,7 +100,7 @@ export const KPICards: React.FC<KPICardsProps> = ({ stats }) => {
         </div>
 
         {/* CARD 3: PERLU IZIN */}
-        <div id="kpi-card-izin" className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm hover:shadow transition">
+        <div id="kpi-card-izin" className="bg-white/95 backdrop-blur-md rounded-xl p-4 border border-slate-200 shadow-sm hover:shadow transition">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1.5">
               <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
@@ -127,7 +128,7 @@ export const KPICards: React.FC<KPICardsProps> = ({ stats }) => {
         </div>
 
         {/* CARD 4: POHON BESAR */}
-        <div id="kpi-card-pohon-besar" className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm hover:shadow transition">
+        <div id="kpi-card-pohon-besar" className="bg-white/95 backdrop-blur-md rounded-xl p-4 border border-slate-200 shadow-sm hover:shadow transition">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1.5">
               <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
@@ -157,56 +158,80 @@ export const KPICards: React.FC<KPICardsProps> = ({ stats }) => {
       </div>
 
       {/* Secondary Performance Banner: TARGET BULANAN KMS & REALISASI GAWANG */}
-      <div className="bg-slate-900 rounded-xl p-4 text-white border border-slate-800 shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 divider-y md:divider-y-0 md:divider-x divider-slate-800">
+      <div className="bg-slate-900/90 backdrop-blur-md rounded-xl p-4 text-white border border-slate-800 shadow-md">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           
           {/* Target vs Realisasi KMS */}
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
-              <Ruler className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="text-xs font-medium text-slate-400 uppercase tracking-wide">
-                Target & Realisasi KMS
+          <div className="flex items-start justify-between space-x-3 bg-slate-950/40 p-3 rounded-xl border border-slate-800/80">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20 shrink-0">
+                <Ruler className="w-6 h-6" />
               </div>
-              <div className="flex items-baseline space-x-2 mt-0.5">
-                <span className="text-xl font-bold text-emerald-400">
-                  {formatNumber(stats.totalRealisasiKms, 2)} KMS
-                </span>
-                <span className="text-xs text-slate-400">
-                  / {formatNumber(stats.totalTargetKms, 2)} KMS Target
-                </span>
+              <div>
+                <div className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+                  Target & Realisasi KMS
+                </div>
+                <div className="flex items-baseline space-x-2 mt-0.5">
+                  <span className="text-xl font-bold text-emerald-400">
+                    {formatNumber(stats.totalRealisasiKms, 2)} KMS
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    / {formatNumber(stats.totalTargetKms, 2)} KMS
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Pencapaian: <strong className="text-emerald-300">{stats.persentaseKms.toFixed(1)}%</strong> dari target bulanan
+                </p>
               </div>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Pencapaian: <strong className="text-emerald-300">{stats.persentaseKms.toFixed(1)}%</strong> dari target bulanan
-              </p>
             </div>
+
+            {onOpenTargetModal && (
+              <button
+                type="button"
+                onClick={onOpenTargetModal}
+                className="px-2.5 py-1 text-[11px] font-bold bg-purple-600 hover:bg-purple-500 text-white rounded-lg border border-purple-400/40 shadow flex items-center space-x-1 shrink-0 transition"
+                title="Atur Target Bulanan Manual"
+              >
+                <Target className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Set Target</span>
+              </button>
+            )}
           </div>
 
-          {/* Realisasi Gawang */}
-          <div className="flex items-center space-x-4 md:pl-4">
-            <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl border border-cyan-500/20">
+          {/* Target vs Realisasi Gawang */}
+          <div className="flex items-center space-x-4 bg-slate-950/40 p-3 rounded-xl border border-slate-800/80">
+            <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl border border-cyan-500/20 shrink-0">
               <Layers className="w-6 h-6" />
             </div>
             <div>
               <div className="text-xs font-medium text-slate-400 uppercase tracking-wide">
-                Total Realisasi Gawang
+                Target &amp; Realisasi Gawang
               </div>
               <div className="flex items-baseline space-x-2 mt-0.5">
                 <span className="text-xl font-bold text-cyan-400">
                   {formatNumber(stats.totalRealisasiGawang)}
                 </span>
-                <span className="text-xs text-slate-400">Gawang / Span</span>
+                <span className="text-xs text-slate-400">
+                  {stats.totalTargetGawang && stats.totalTargetGawang > 0
+                    ? `/ ${formatNumber(stats.totalTargetGawang)} Gawang`
+                    : 'Gawang / Span'}
+                </span>
               </div>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Panjang bebas sentuhan dahan jaringan SUTM
+                {stats.totalTargetGawang && stats.totalTargetGawang > 0 ? (
+                  <>
+                    Pencapaian: <strong className="text-cyan-300">{(stats.persentaseGawang || 0).toFixed(1)}%</strong> dari target bulanan
+                  </>
+                ) : (
+                  'Panjang bebas sentuhan dahan jaringan SUTM'
+                )}
               </p>
             </div>
           </div>
 
           {/* Efficiency & Rate Status */}
-          <div className="flex items-center space-x-4 md:pl-4">
-            <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20">
+          <div className="flex items-center space-x-4 bg-slate-950/40 p-3 rounded-xl border border-slate-800/80">
+            <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20 shrink-0">
               <TrendingUp className="w-6 h-6" />
             </div>
             <div>

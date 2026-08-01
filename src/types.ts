@@ -54,7 +54,9 @@ export interface KPIStats {
   totalRealisasiKms: number;
   persentaseKms: number;
   
+  totalTargetGawang?: number;
   totalRealisasiGawang: number;
+  persentaseGawang?: number;
   
   totalPerluPadam: number;
   totalPerluIzin: number;
