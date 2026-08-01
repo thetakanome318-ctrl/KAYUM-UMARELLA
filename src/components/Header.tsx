@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Building2,
   HardDriveDownload,
+  Cloud,
 } from 'lucide-react';
 import powerLinesBg from '../assets/images/power_lines_bg_1785580144298.jpg';
 
@@ -117,12 +118,13 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span className="font-medium">
-                {totalRecordsCount} Section Terdata
+              <span className="font-medium flex items-center gap-1.5 text-slate-200">
+                <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Cloud Firestore Active ({totalRecordsCount} Section)</span>
               </span>
               {lastSaveTime && (
                 <span className="hidden sm:inline text-[10px] text-emerald-400 border-l border-slate-700 pl-2">
-                  Tersimpan {lastSaveTime}
+                  Sync {lastSaveTime}
                 </span>
               )}
             </div>

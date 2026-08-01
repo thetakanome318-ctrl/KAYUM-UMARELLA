@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "records": {
+      "title": "ROW Monitoring Record",
+      "description": "Records of ROW tree trimming, KMS targets, findings, and issues per section/feeder.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "bulan": { "type": "string" },
+        "bulanKe": { "type": "number" },
+        "tahun": { "type": "number" },
+        "penyulang": { "type": "string" },
+        "section": { "type": "string" },
+        "targetKms": { "type": "number" },
+        "realisasiKms": { "type": "number" },
+        "realisasiGawang": { "type": "number" },
+        "jumlahTemuan": { "type": "number" },
+        "realisasiTemuan": { "type": "number" },
+        "luarTemuan": { "type": "number" },
+        "realisasiLuarTemuan": { "type": "number" },
+        "catatan": { "type": "string" },
+        "perluPadam": { "type": "boolean" },
+        "jumlahPerluPadam": { "type": "number" },
+        "tidakAdaIzin": { "type": "boolean" },
+        "jumlahTidakAdaIzin": { "type": "number" },
+        "pohonBesar": { "type": "boolean" },
+        "jumlahPohonBesar": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "section", "penyulang"]
+    },
+    "monthlyTargets": {
+      "title": "Monthly Targets",
+      "description": "Target KMS and Target Gawang set for specific year and month.",
+      "type": "object",
+      "properties": {
+        "bulanKey": { "type": "string" },
+        "tahun": { "type": "number" },
+        "bulanKe": { "type": "number" },
+        "targetKms": { "type": "number" },
+        "targetGawang": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["bulanKey"]
+    }
+  }
+}

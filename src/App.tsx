@@ -2,7 +2,15 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ROWRecord, FilterState, ViewTab } from './types';
 import { INITIAL_RECORDS } from './data/mockData';
 import { calculateKPIStats, formatBulan } from './utils/calculations';
-import { getMonthlyTargetsMap, MonthlyTargetItem } from './utils/targetStorage';
+import { getMonthlyTargetsMap, saveMonthlyTargetsMap, MonthlyTargetItem, DEFAULT_MONTHLY_TARGETS } from './utils/targetStorage';
+import { 
+  subscribeRecords, 
+  subscribeMonthlyTargets, 
+  saveRecordToCloud, 
+  deleteRecordFromCloud, 
+  syncAllRecordsToCloud, 
+  syncAllTargetsToCloud 
+} from './lib/firebase';
 import { Header } from './components/Header';
 import { KPICards } from './components/KPICards';
 import { FilterBar } from './components/FilterBar';
@@ -68,6 +76,43 @@ export default function App() {
     }
     return INITIAL_RECORDS;
   });
+
+  // Subscribe to Cloud Firestore Real-time Records & Monthly Targets
+  useEffect(() => {
+    let initialRecordsSeeded = false;
+    let initialTargetsSeeded = false;
+
+    const unsubscribeRecords = subscribeRecords((cloudRecords) => {
+      if (cloudRecords && cloudRecords.length > 0) {
+        setRecords(cloudRecords);
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudRecords));
+        } catch (e) {
+          console.error('Error caching cloud records:', e);
+        }
+      } else if (!initialRecordsSeeded) {
+        // Seed default initial records to Cloud Firestore if Cloud collection is empty
+        initialRecordsSeeded = true;
+        syncAllRecordsToCloud(records.length > 0 ? records : INITIAL_RECORDS);
+      }
+    });
+
+    const unsubscribeTargets = subscribeMonthlyTargets((cloudTargetsMap) => {
+      if (cloudTargetsMap && Object.keys(cloudTargetsMap).length > 0) {
+        const merged = { ...DEFAULT_MONTHLY_TARGETS, ...cloudTargetsMap };
+        setMonthlyTargetsMap(merged);
+        saveMonthlyTargetsMap(merged);
+      } else if (!initialTargetsSeeded) {
+        initialTargetsSeeded = true;
+        syncAllTargetsToCloud(monthlyTargetsMap);
+      }
+    });
+
+    return () => {
+      unsubscribeRecords();
+      unsubscribeTargets();
+    };
+  }, []);
 
   // Save to localStorage on change
   useEffect(() => {
@@ -170,6 +215,8 @@ export default function App() {
   const handleManualSave = () => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      syncAllRecordsToCloud(records);
+      syncAllTargetsToCloud(monthlyTargetsMap);
       const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       setLastSaveTime(nowTime);
     } catch (e) {
@@ -188,7 +235,7 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  const handleSaveRecord = (savedRecord: ROWRecord) => {
+  const handleSaveRecord = async (savedRecord: ROWRecord) => {
     setRecords((prev) => {
       const exists = prev.some((item) => item.id === savedRecord.id);
       if (exists) {
@@ -197,15 +244,27 @@ export default function App() {
         return [savedRecord, ...prev];
       }
     });
-  };
-
-  const handleDeleteRecord = (id: string) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus data temuan ini?')) {
-      setRecords((prev) => prev.filter((item) => item.id !== id));
+    try {
+      await saveRecordToCloud(savedRecord);
+      const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      setLastSaveTime(nowTime);
+    } catch (e) {
+      console.error('Error saving to Cloud Firestore:', e);
     }
   };
 
-  const handleDeleteAllData = () => {
+  const handleDeleteRecord = async (id: string) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus data temuan ini?')) {
+      setRecords((prev) => prev.filter((item) => item.id !== id));
+      try {
+        await deleteRecordFromCloud(id);
+      } catch (e) {
+        console.error('Error deleting from Cloud Firestore:', e);
+      }
+    }
+  };
+
+  const handleDeleteAllData = async () => {
     if (records.length === 0) {
       alert('Tidak ada data monitoring untuk dihapus.');
       return;
@@ -215,14 +274,23 @@ export default function App() {
         `Apakah Anda YAKIN ingin MENGHAPUS SEMUA ${records.length} data monitoring ROW? Seluruh data pada tabel akan dikosongkan secara langsung!`
       )
     ) {
+      const prevRecords = [...records];
       setRecords([]);
+      for (const r of prevRecords) {
+        try {
+          await deleteRecordFromCloud(r.id);
+        } catch (e) {
+          console.error('Failed to delete doc:', e);
+        }
+      }
     }
   };
 
-  const handleResetData = () => {
+  const handleResetData = async () => {
     if (window.confirm('Reset seluruh data ke sample default awal?')) {
       setRecords(INITIAL_RECORDS);
       localStorage.removeItem(STORAGE_KEY);
+      await syncAllRecordsToCloud(INITIAL_RECORDS);
     }
   };
 

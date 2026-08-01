@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Target, CalendarDays, CheckCircle2, Save, RefreshCw, BarChart2 } from 'lucide-react';
 import { MonthlyTargetItem, getMonthlyTargetsMap, saveMonthlyTargetsMap, DEFAULT_MONTHLY_TARGETS } from '../utils/targetStorage';
 import { BULAN_SIMPLE_LIST, YEAR_LIST } from '../data/mockData';
+import { syncAllTargetsToCloud } from '../lib/firebase';
 
 interface TargetManagerModalProps {
   isOpen: boolean;
@@ -47,6 +48,7 @@ export const TargetManagerModal: React.FC<TargetManagerModalProps> = ({
 
   const handleSaveAll = () => {
     saveMonthlyTargetsMap(targetsMap);
+    syncAllTargetsToCloud(targetsMap);
     onTargetsUpdated();
     setToastMsg(`Target bulanan tahun ${currentYear} berhasil diperbarui!`);
     setTimeout(() => {
@@ -59,6 +61,7 @@ export const TargetManagerModal: React.FC<TargetManagerModalProps> = ({
     if (window.confirm(`Reset target bulanan ke nilai standar PLN?`)) {
       setTargetsMap({ ...DEFAULT_MONTHLY_TARGETS });
       saveMonthlyTargetsMap(DEFAULT_MONTHLY_TARGETS);
+      syncAllTargetsToCloud(DEFAULT_MONTHLY_TARGETS);
       onTargetsUpdated();
       setToastMsg('Target bulanan di-reset ke nilai default.');
       setTimeout(() => setToastMsg(null), 2000);
