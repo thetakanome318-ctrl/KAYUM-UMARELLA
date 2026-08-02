@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import {
-  TreePine,
+  HardHat,
   Plus,
   Download,
   RefreshCw,
@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Activity,
   ShieldCheck,
+  ShieldAlert,
   Building2,
   HardDriveDownload,
   Cloud,
@@ -20,8 +21,15 @@ import {
   FileSpreadsheet,
   Sun,
   Moon,
+  ChevronDown,
+  Sparkles,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
 } from 'lucide-react';
 import powerLinesBg from '../assets/images/power_lines_bg_1785580144298.jpg';
+import { getDailySafetyMessage, SAFETY_MESSAGES } from '../data/safetyMessages';
 
 interface HeaderProps {
   onOpenModal: () => void;
@@ -32,11 +40,12 @@ interface HeaderProps {
   onSaveData?: () => void;
   lastSaveTime?: string | null;
   totalRecordsCount: number;
-  currentUser?: { username: string; name: string; role: string } | null;
+  currentUser?: { username: string; name: string; role: string; photo?: string } | null;
   onLogout?: () => void;
   onOpenUserModal?: () => void;
   theme?: 'dark' | 'light';
   onToggleTheme?: () => void;
+  isReadOnly?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -53,12 +62,43 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenUserModal,
   theme,
   onToggleTheme,
+  isReadOnly,
 }) => {
   const [showSaveToast, setShowSaveToast] = useState(false);
   const [headerTheme, setHeaderTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('header_theme') as 'dark' | 'light') || 'dark';
   });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showStatusPopover, setShowStatusPopover] = useState(false);
+
+  // Daily Safety Message State
+  const [safetyDate, setSafetyDate] = useState<Date>(new Date());
+  const dailySafetyMessage = getDailySafetyMessage(safetyDate);
+
+  const formattedSafetyDate = new Intl.DateTimeFormat('id-ID', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(safetyDate);
+
+  const isToday = safetyDate.toDateString() === new Date().toDateString();
+
+  const handlePrevSafetyDate = () => {
+    const prev = new Date(safetyDate);
+    prev.setDate(prev.getDate() - 1);
+    setSafetyDate(prev);
+  };
+
+  const handleNextSafetyDate = () => {
+    const next = new Date(safetyDate);
+    next.setDate(next.getDate() + 1);
+    setSafetyDate(next);
+  };
+
+  const handleResetSafetyDate = () => {
+    setSafetyDate(new Date());
+  };
 
   const currentTheme = theme || headerTheme;
   const isLight = currentTheme === 'light';
@@ -77,12 +117,12 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className={`relative border-b shadow-xl overflow-hidden sticky top-0 z-30 transition-all duration-300 ${
       isLight 
-        ? "bg-white text-slate-800 border-slate-200" 
-        : "bg-slate-950 text-white border-slate-800"
+        ? "bg-white/95 backdrop-blur-md text-slate-800 border-slate-200/80" 
+        : "bg-slate-950/95 backdrop-blur-md text-white border-slate-800/80"
     }`}>
       {/* Background Image Pekerjaan Listrik di Tiang Listrik */}
       <div className={`absolute inset-0 z-0 overflow-hidden pointer-events-none transition-all duration-300 ${
-        isLight ? "opacity-[0.05] mix-blend-overlay" : "opacity-25 mix-blend-luminosity"
+        isLight ? "opacity-[0.04] mix-blend-overlay" : "opacity-20 mix-blend-luminosity"
       }`}>
         <img
           src={powerLinesBg}
@@ -92,47 +132,51 @@ export const Header: React.FC<HeaderProps> = ({
         />
         <div className={`absolute inset-0 transition-all duration-300 ${
           isLight 
-            ? "bg-gradient-to-r from-white via-slate-50/90 to-white/85" 
-            : "bg-gradient-to-r from-slate-950 via-slate-900/90 to-slate-950/85"
+            ? "bg-gradient-to-r from-white via-slate-50/95 to-white/90" 
+            : "bg-gradient-to-r from-slate-950 via-slate-900/95 to-slate-950/90"
         }`}></div>
         <div className={`absolute inset-0 transition-all duration-300 ${
           isLight 
-            ? "bg-gradient-to-b from-transparent via-slate-100/40 to-white" 
-            : "bg-gradient-to-b from-transparent via-slate-950/40 to-slate-950"
+            ? "bg-gradient-to-b from-transparent via-slate-100/30 to-white" 
+            : "bg-gradient-to-b from-transparent via-slate-950/30 to-slate-950"
         }`}></div>
       </div>
 
       {/* Grid Pattern Accent overlay */}
       <div className={`absolute inset-0 [background-size:24px_24px] pointer-events-none z-0 transition-all duration-300 ${
         isLight 
-          ? "bg-[radial-gradient(#059669_1px,transparent_1px)] opacity-[0.04]" 
+          ? "bg-[radial-gradient(#059669_1px,transparent_1px)] opacity-[0.03]" 
           : "bg-[radial-gradient(#38bdf8_1px,transparent_1px)] opacity-10"
       }`}></div>
 
       {/* Main Header Wrapper */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
         {/* Top Row: Brand & System Badge & User Profile */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           {/* Brand Info */}
           <div className="flex items-center space-x-3.5">
-            <div className={`relative h-11 w-11 rounded-xl flex items-center justify-center shadow-lg shrink-0 transition-all duration-300 ${
-              isLight 
-                ? 'bg-gradient-to-br from-emerald-500/10 to-teal-500/5 border border-emerald-200 shadow-emerald-100' 
-                : 'bg-gradient-to-br from-emerald-500/20 to-cyan-500/10 border border-emerald-400/40 shadow-emerald-950/50'
-            }`}>
-              <TreePine className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-              <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-950 flex items-center justify-center">
-                <Zap className="w-2 h-2 text-white fill-white scale-75" />
+            <motion.div 
+              whileHover={{ scale: 1.05, rotate: 2 }}
+              whileTap={{ scale: 0.95 }}
+              className={`relative h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg shrink-0 transition-all duration-300 cursor-pointer ${
+                isLight 
+                  ? 'bg-gradient-to-br from-amber-500/15 to-emerald-500/10 border border-amber-300/50 shadow-amber-500/10' 
+                  : 'bg-gradient-to-br from-amber-500/25 to-cyan-500/15 border border-amber-400/40 shadow-amber-950/50'
+              }`}
+            >
+              <HardHat className="h-6 w-6 text-amber-500 dark:text-amber-400 drop-shadow" />
+              <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-950 flex items-center justify-center shadow">
+                <Zap className="w-2.5 h-2.5 text-white fill-white scale-75" />
               </div>
-            </div>
+            </motion.div>
 
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className={`text-lg sm:text-xl font-extrabold tracking-tight flex items-center gap-2 transition-all ${
+                <h1 className={`text-lg sm:text-xl font-black tracking-tight flex items-center gap-2 transition-all ${
                   isLight ? "text-slate-900" : "text-white"
                 }`}>
                   <span>Perang Padam Baguala</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/30 font-bold flex items-center gap-1">
+                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-black flex items-center gap-1 shadow-xs">
                     <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
                     20kV PLN
                   </span>
@@ -141,17 +185,17 @@ export const Header: React.FC<HeaderProps> = ({
 
               <div className="flex flex-col text-xs mt-1 transition-all">
                 <span className={`font-semibold flex items-center gap-1.5 ${
-                  isLight ? "text-emerald-600" : "text-emerald-400"
+                  isLight ? "text-emerald-700" : "text-emerald-400"
                 }`}>
                   <Activity className="w-3.5 h-3.5" />
-                  Sistem Monitoring ROW & Pemangkasan Pohon Jaringan Distribusi
+                  Sistem Monitoring Gangguan Penyulang, ROW Pohon, Inspeksi dan Pengukuran Gardu
                 </span>
                 
                 <motion.div 
                   initial={{ opacity: 0, y: 2 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
-                  className={`italic mt-1 pl-5 flex items-center gap-1.5 text-[11px] font-semibold tracking-wide ${
+                  className={`italic mt-1 pl-4 flex items-center gap-1.5 text-[11px] font-bold tracking-wide ${
                     isLight ? "text-emerald-600/90" : "text-emerald-300/90"
                   }`}
                 >
@@ -164,7 +208,7 @@ export const Header: React.FC<HeaderProps> = ({
                     animate={{ letterSpacing: ["0px", "0.5px", "0px"] }}
                     transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                   >
-                    Support by the tukimen
+                    Pantang Pulang Sebelum Terang — Support by the tukimen
                   </motion.span>
                 </motion.div>
               </div>
@@ -172,52 +216,87 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* User Profile & Record Count Indicator */}
-          <div className={`flex flex-wrap items-center justify-between md:justify-end gap-2.5 pt-2.5 md:pt-0 border-t md:border-t-0 ${
+          <div className={`flex flex-wrap items-center justify-between lg:justify-end gap-3 pt-3 lg:pt-0 border-t lg:border-t-0 ${
             isLight ? "border-slate-200" : "border-slate-800/80"
           }`}>
-            {/* Theme Toggle Button */}
-            <button
+            {/* Interactive Theme Toggle Button */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={toggleTheme}
               title={`Ubah ke Tema ${isLight ? 'Gelap' : 'Terang'}`}
-              className={`p-1.5 rounded-lg border transition-all flex items-center justify-center gap-1.5 text-xs font-bold shadow-xs active:scale-95 ${
+              className={`px-3 py-1.5 rounded-xl border transition-all flex items-center gap-2 text-xs font-bold shadow-xs ${
                 isLight 
-                  ? 'text-slate-700 bg-slate-100 hover:bg-slate-200 border-slate-200' 
+                  ? 'text-slate-700 bg-slate-100/90 hover:bg-slate-200 border-slate-200' 
                   : 'text-amber-400 bg-slate-900/90 hover:bg-slate-800/85 border-slate-800'
               }`}
             >
               {isLight ? (
                 <>
                   <Moon className="w-3.5 h-3.5 text-indigo-600 fill-indigo-100" />
-                  <span className="hidden sm:inline text-[10px] text-slate-700">Gelap</span>
+                  <span className="text-[11px] text-slate-700">Gelap</span>
                 </>
               ) : (
                 <>
                   <Sun className="w-3.5 h-3.5 text-amber-400 fill-amber-400/20" />
-                  <span className="hidden sm:inline text-[10px] text-slate-300">Terang</span>
+                  <span className="text-[11px] text-slate-300">Terang</span>
                 </>
               )}
-            </button>
+            </motion.button>
 
-            {/* Status Storage Badge */}
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs shadow-inner transition-all ${
-              isLight 
-                ? "bg-slate-100/80 border-slate-200 text-slate-700" 
-                : "bg-slate-900/90 border-slate-800/80 text-slate-300"
-            }`}>
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span className="font-semibold flex items-center gap-1.5">
-                <Cloud className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Cloud Active ({totalRecordsCount})</span>
-              </span>
-              {lastSaveTime && (
-                <span className={`hidden sm:inline text-[10px] border-l pl-2 ${
-                  isLight ? "text-emerald-600 border-slate-200" : "text-emerald-400 border-slate-700"
-                }`}>
-                  Sync {lastSaveTime}
+            {/* Interactive Status Storage Badge with Popover toggle */}
+            <div className="relative">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setShowStatusPopover(!showStatusPopover)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs shadow-xs transition-all cursor-pointer ${
+                  isLight 
+                    ? "bg-slate-100/90 border-slate-200 text-slate-700 hover:bg-slate-200" 
+                    : "bg-slate-900/90 border-slate-800/80 text-slate-300 hover:bg-slate-800"
+                }`}
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
+                <span className="font-bold flex items-center gap-1.5">
+                  <Cloud className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Cloud Active</span>
+                  <span className="px-1.5 py-0.2 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 rounded-md font-mono font-bold text-[10px]">
+                    {totalRecordsCount}
+                  </span>
+                </span>
+                <ChevronDown className={`w-3 h-3 transition-transform ${showStatusPopover ? 'rotate-180' : ''}`} />
+              </motion.button>
+
+              {/* Status Popover dropdown */}
+              {showStatusPopover && (
+                <div className={`absolute right-0 mt-2 w-64 rounded-2xl p-4 shadow-2xl border z-50 animate-fade-in ${
+                  isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-900 border-slate-800 text-slate-100'
+                }`}>
+                  <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-700/30">
+                    <span className="text-xs font-black uppercase tracking-wider text-emerald-500 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Status Sistem Cloud
+                    </span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">Online</span>
+                  </div>
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Total Database:</span>
+                      <span className="font-bold font-mono">{totalRecordsCount} Record</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Sinkronisasi:</span>
+                      <span className="font-bold text-emerald-500">{lastSaveTime || 'Real-time'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Keamanan:</span>
+                      <span className="font-bold text-amber-500">AES-256 / SSL</span>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -225,7 +304,7 @@ export const Header: React.FC<HeaderProps> = ({
             {currentUser && (
               <div className="flex items-center gap-2">
                 {/* Profile Badge (Elegant & High Quality) */}
-                <div className={`flex items-center space-x-2.5 px-3 py-1 border rounded-xl shadow-xs relative overflow-hidden group transition-all ${
+                <div className={`flex items-center space-x-2.5 px-3.5 py-1.5 border rounded-xl shadow-xs relative overflow-hidden transition-all ${
                   isLight 
                     ? 'bg-slate-100/90 border-slate-200' 
                     : 'bg-slate-900/95 border-slate-800'
@@ -238,23 +317,27 @@ export const Header: React.FC<HeaderProps> = ({
                     <span className={`absolute -inset-0.5 rounded-full animate-pulse opacity-30 blur-xs ${
                       isAdmin ? 'bg-amber-400' : 'bg-emerald-400'
                     }`} />
-                    <div className={`relative w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white shrink-0 shadow-inner bg-gradient-to-br ${
+                    <div className={`relative w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white shrink-0 shadow-inner bg-gradient-to-br overflow-hidden ${
                       isAdmin 
                         ? 'from-amber-500 to-orange-600 border border-amber-400/30' 
                         : 'from-emerald-500 to-teal-600 border border-emerald-400/30'
                     }`}>
-                      {currentUser.username.charAt(0).toUpperCase()}
+                      {currentUser.photo ? (
+                        <img src={currentUser.photo} alt={currentUser.name} className="w-full h-full object-cover" />
+                      ) : (
+                        currentUser.username.charAt(0).toUpperCase()
+                      )}
                     </div>
                   </div>
 
                   <div className="text-left leading-tight">
-                    <div className={`text-xs font-black tracking-wide capitalize max-w-[80px] truncate sm:max-w-none flex items-center gap-1 ${
+                    <div className={`text-xs font-black tracking-wide capitalize max-w-[90px] truncate sm:max-w-none flex items-center gap-1 ${
                       isLight ? 'text-slate-800' : 'text-slate-100'
                     }`}>
                       {currentUser.name}
                       {isAdmin && <ShieldCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
                     </div>
-                    <div className={`text-[9px] font-extrabold tracking-wider uppercase ${
+                    <div className={`text-[9px] font-black tracking-wider uppercase ${
                       isAdmin ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
                     }`}>
                       {currentUser.role}
@@ -264,37 +347,124 @@ export const Header: React.FC<HeaderProps> = ({
 
                 {/* Manage Users (Admin Only) */}
                 {isAdmin && onOpenUserModal && (
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={onOpenUserModal}
                     title="Kelola Pengguna System (Admin)"
-                    className={`p-1.5 rounded-lg transition border flex items-center justify-center active:scale-95 ${
+                    className={`p-2 rounded-xl transition border flex items-center justify-center shadow-xs ${
                       isLight 
                         ? 'text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200' 
                         : 'text-purple-300 bg-purple-950/40 hover:bg-purple-900/60 border-purple-500/30'
                     }`}
                   >
-                    <Users className="w-3.5 h-3.5" />
-                  </button>
+                    <Users className="w-4 h-4" />
+                  </motion.button>
                 )}
 
                 {/* Logout Button (With confirm modal trigger) */}
                 {onLogout && (
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setShowLogoutConfirm(true)}
                     title="Keluar dari Aplikasi"
-                    className={`p-1.5 rounded-lg transition border flex items-center justify-center active:scale-95 ${
+                    className={`p-2 rounded-xl transition border flex items-center justify-center shadow-xs ${
                       isLight 
                         ? 'text-red-600 bg-red-50 hover:bg-red-100 border-red-200' 
                         : 'text-amber-300 bg-amber-950/30 hover:bg-amber-900/50 border-amber-500/30'
                     }`}
                   >
-                    <LogOut className="w-3.5 h-3.5" />
-                  </button>
+                    <LogOut className="w-4 h-4" />
+                  </motion.button>
                 )}
               </div>
             )}
           </div>
         </div>
+      </div>
+
+      {/* Sub-Header: Pesan Keselamatan Harian (K3) - Positioned cleanly below the main header row */}
+      <div className={`border-t transition-colors relative z-10 ${
+        isLight
+          ? 'border-red-300 bg-gradient-to-r from-red-600 via-red-500 to-red-600 text-white shadow-xs'
+          : 'border-red-950 bg-gradient-to-r from-red-800 via-red-900 to-red-800 text-white shadow-xs'
+      }`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 text-xs">
+          
+          {/* Left: K3 Badge & Focus */}
+          <div className="flex items-center space-x-2.5 shrink-0">
+            <div className={`p-1.5 rounded-lg flex items-center justify-center font-bold shrink-0 ${
+              isLight ? 'bg-red-700 text-white shadow-xs' : 'bg-red-500/30 text-white border border-red-500/40'
+            }`}>
+              <ShieldCheck className="w-4 h-4 animate-pulse" />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center space-x-2">
+                <span className="font-black tracking-wider uppercase text-[9px] px-1.5 py-0.5 rounded bg-white/20 text-white border border-white/30">
+                  PESAN K3 HARIAN
+                </span>
+                <span className="text-[10px] font-semibold opacity-90 flex items-center gap-1 text-white">
+                  <Calendar className="w-3 h-3 text-white" />
+                  {formattedSafetyDate}
+                </span>
+              </div>
+              <span className="text-[11px] font-extrabold text-white/95">
+                Fokus: {dailySafetyMessage.focus}
+              </span>
+            </div>
+          </div>
+
+          {/* Center: Message text with Running Text effect */}
+          <div className="flex-1 px-1 md:px-4 py-0.5 min-w-0 overflow-hidden relative">
+            <div className="whitespace-nowrap inline-block animate-marquee hover:[animation-play-state:paused] cursor-help">
+              <p className="text-[13px] font-bold leading-snug italic text-white px-4">
+                "{dailySafetyMessage.message}" — Tetap Utamakan Keselamatan dan Kesehatan Kerja (K3) dalam setiap aktivitas!
+              </p>
+            </div>
+            {/* Fade effects for the marquee edges */}
+            <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-red-600/50 dark:from-red-950/50 to-transparent pointer-events-none" />
+            <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-red-600/50 dark:from-red-950/50 to-transparent pointer-events-none" />
+          </div>
+
+          {/* Right: Category badge & Navigation controls */}
+          <div className="flex items-center justify-between md:justify-end space-x-2.5 shrink-0">
+            <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold border ${
+              isLight 
+                ? 'bg-red-700/50 text-white border-red-400/30' 
+                : 'bg-red-900/60 text-red-100 border-red-700/60'
+            }`}>
+              {dailySafetyMessage.category}
+            </span>
+
+            <div className="flex items-center space-x-0.5 bg-black/5 dark:bg-white/5 rounded-lg p-0.5 border border-red-400/30">
+              <button
+                onClick={handlePrevSafetyDate}
+                title="Pesan Hari Sebelumnya"
+                className="p-1 rounded hover:bg-red-500/30 transition cursor-pointer text-white active:scale-95"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              {!isToday && (
+                <button
+                  onClick={handleResetSafetyDate}
+                  title="Kembali ke Hari Ini"
+                  className="p-1 rounded hover:bg-red-500/30 transition cursor-pointer text-white active:scale-95"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <button
+                onClick={handleNextSafetyDate}
+                title="Pesan Hari Berikutnya"
+                className="p-1 rounded hover:bg-red-500/30 transition cursor-pointer text-white active:scale-95"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
         {/* Success Toast Notification overlay when Simpan Data is clicked */}
         {showSaveToast && (
@@ -308,7 +478,6 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
         )}
-      </div>
 
       {/* Elegant Logout Confirmation Dialog (Ya / Tidak) */}
       {showLogoutConfirm && (
@@ -349,4 +518,5 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
+
 

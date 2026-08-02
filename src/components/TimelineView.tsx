@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ROWRecord } from '../types';
 import { formatBulan, formatNumber } from '../utils/calculations';
-import { TreePine, PowerOff, ShieldAlert, CheckCircle2, Clock, Layers, Ruler } from 'lucide-react';
+import { TreePine, PowerOff, ShieldAlert, CheckCircle2, Clock, Layers, Ruler, FileText } from 'lucide-react';
 
 interface TimelineViewProps {
   records: ROWRecord[];
@@ -67,6 +67,24 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       return yearMatch && monthMatch;
     });
   }, [records, localYear, localMonth]);
+
+  const handleExportCsv = () => {
+    const DELIM = ';';
+    const lines = [
+      'sep=;',
+      `"TIMELINE ROW"`,
+      `"Tanggal"${DELIM}"Bulan"${DELIM}"Penyulang"${DELIM}"Section"${DELIM}"Realisasi KMS"${DELIM}"Realisasi Gawang"${DELIM}"Temuan Pohon"${DELIM}"Realisasi Pangkas"${DELIM}"Catatan"`,
+      ...filteredTimelineRecords.map(r => `"${r.tanggal || '-'}"${DELIM}"${formatBulan(r.bulan)}"${DELIM}"${r.penyulang || '-'}"${DELIM}"${r.section || '-'}"${DELIM}"${r.realisasiKms || 0}"${DELIM}"${r.realisasiGawang || 0}"${DELIM}"${r.jumlahTemuan || 0}"${DELIM}"${r.realisasiTemuan || 0}"${DELIM}"${r.catatan || '-'}"`)
+    ];
+    const blob = new Blob(["\uFEFF" + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Timeline_ROW_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Group filtered records by Month
   const groupedByMonth = filteredTimelineRecords.reduce((acc, rec) => {
@@ -145,6 +163,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 <option key={mKey} value={mKey}>{formatBulan(mKey)}</option>
               ))}
             </select>
+            <button
+              onClick={handleExportCsv}
+              className="ml-2 px-3 py-1.5 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 flex items-center gap-1.5 shadow-md"
+            >
+              <FileText className="w-3.5 h-3.5" /> Excel
+            </button>
           </div>
         </div>
       </div>
@@ -155,12 +179,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           const monthRecords = groupedByMonth[monthKey];
           
           // Month summary
-          const monthTargetKms = monthRecords.reduce((sum, r) => sum + r.targetKms, 0);
           const monthRealisasiKms = monthRecords.reduce((sum, r) => sum + r.realisasiKms, 0);
           const monthGawang = monthRecords.reduce((sum, r) => sum + r.realisasiGawang, 0);
           const monthTemuan = monthRecords.reduce((sum, r) => sum + r.jumlahTemuan, 0);
           const monthRealisasiTemuan = monthRecords.reduce((sum, r) => sum + r.realisasiTemuan, 0);
-          const monthPctKms = monthTargetKms > 0 ? (monthRealisasiKms / monthTargetKms) * 100 : 0;
           const monthPctTemuan = monthTemuan > 0 ? (monthRealisasiTemuan / monthTemuan) * 100 : 0;
 
           return (
@@ -195,7 +217,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                     </span>
                   </h3>
                   <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                    Target KMS: <strong className={isLight ? 'text-slate-800' : 'text-slate-200'}>{formatNumber(monthTargetKms, 1)} KMS</strong> | Realisasi KMS: <strong className={isLight ? 'text-emerald-700' : 'text-emerald-300'}>{formatNumber(monthRealisasiKms, 1)} KMS ({monthPctKms.toFixed(1)}%)</strong>
+                    Realisasi KMS: <strong className={isLight ? 'text-emerald-700' : 'text-emerald-300'}>{formatNumber(monthRealisasiKms, 1)} KMS</strong>
                   </p>
                 </div>
 
@@ -222,9 +244,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               {/* Timeline Items Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {monthRecords.map((item) => {
-                  const pctKms = item.targetKms > 0 ? (item.realisasiKms / item.targetKms) * 100 : 0;
                   const pctTemuan = item.jumlahTemuan > 0 ? (item.realisasiTemuan / item.jumlahTemuan) * 100 : 0;
-                  const isComplete = pctTemuan >= 100 && pctKms >= 100;
+                  const isComplete = pctTemuan >= 100;
 
                   return (
                     <div
@@ -273,7 +294,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                           )}
                         </div>
 
-                        {/* KMS Target & Realisasi Card */}
+                        {/* KMS Realisasi Card */}
                         <div className={`rounded-lg p-2.5 border my-2 space-y-1.5 ${
                           isLight 
                             ? 'bg-slate-50 border-slate-100' 
@@ -281,19 +302,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                         }`}>
                           <div className="flex items-center justify-between text-xs">
                             <span className={`flex items-center gap-1 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                              <Ruler className="w-3.5 h-3.5 text-emerald-600" /> Target vs Realisasi KMS:
+                              <Ruler className="w-3.5 h-3.5 text-emerald-600" /> Realisasi KMS:
                             </span>
                             <span className={`font-bold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
-                              {formatNumber(item.realisasiKms, 1)} / {formatNumber(item.targetKms, 1)} KMS
+                              {formatNumber(item.realisasiKms, 1)} KMS
                             </span>
-                          </div>
-
-                          {/* KMS Progress Bar */}
-                          <div className={`w-full rounded-full h-1.5 overflow-hidden ${isLight ? 'bg-slate-200' : 'bg-slate-800'}`}>
-                            <div
-                              className="bg-emerald-500 h-1.5 rounded-full"
-                              style={{ width: `${Math.min(pctKms, 100)}%` }}
-                            />
                           </div>
 
                           <div className="flex items-center justify-between text-xs pt-1">

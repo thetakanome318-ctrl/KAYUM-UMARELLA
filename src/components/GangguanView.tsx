@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ROWRecord, Penyulang, MasterSection } from '../types';
 import { formatBulan } from '../utils/calculations';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, FileText } from 'lucide-react';
 import { GangguanFormModal } from './GangguanFormModal';
 
 interface GangguanViewProps {
@@ -10,6 +10,7 @@ interface GangguanViewProps {
   onSaveRecord?: (record: ROWRecord) => void;
   penyulangList?: Penyulang[];
   sectionList?: MasterSection[];
+  isReadOnly?: boolean;
 }
 
 export const GangguanView: React.FC<GangguanViewProps> = ({ 
@@ -17,7 +18,8 @@ export const GangguanView: React.FC<GangguanViewProps> = ({
   isLight = false,
   onSaveRecord,
   penyulangList = [],
-  sectionList = []
+  sectionList = [],
+  isReadOnly = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -26,6 +28,24 @@ export const GangguanView: React.FC<GangguanViewProps> = ({
     return records.filter(r => r.gangguan).sort((a,b) => (b.tanggal || '').localeCompare(a.tanggal || ''));
   }, [records]);
 
+  const handleExportCsv = () => {
+    const DELIM = ';';
+    const lines = [
+      'sep=;',
+      `"DATA GANGGUAN PENYULANG"`,
+      `"Tanggal"${DELIM}"Section"${DELIM}"Keterangan"${DELIM}"Penyebab"`,
+      ...filteredRecords.map(r => `"${r.tanggal || '-'}"${DELIM}"${r.section || '-'}"${DELIM}"${r.gangguanKeterangan || '-'}"${DELIM}"${r.penyebab || '-'}"`)
+    ];
+    const blob = new Blob(["\uFEFF" + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Data_Gangguan_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6">
         <div className={`p-4 rounded-xl border flex flex-wrap gap-4 items-center ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'}`}>
@@ -33,9 +53,16 @@ export const GangguanView: React.FC<GangguanViewProps> = ({
                 <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400"/>
                 <input type="text" placeholder="Cari gangguan..." className={`w-full pl-10 pr-3 py-2 text-xs rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800 border-slate-700'}`} value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
             </div>
-            <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 text-xs font-bold bg-emerald-500 text-slate-950 rounded-xl hover:bg-emerald-400 flex items-center gap-2">
-                <Plus className="w-4 h-4" /> Tambah Gangguan
-            </button>
+            <div className="flex items-center gap-2">
+                <button onClick={handleExportCsv} className="px-4 py-2 text-xs font-bold bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 flex items-center gap-2 cursor-pointer shadow-md">
+                    <FileText className="w-4 h-4" /> Download Excel
+                </button>
+                {!isReadOnly && (
+                  <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 text-xs font-bold bg-emerald-500 text-slate-950 rounded-xl hover:bg-emerald-400 flex items-center gap-2 cursor-pointer shadow-md">
+                      <Plus className="w-4 h-4" /> Tambah Gangguan
+                  </button>
+                )}
+            </div>
         </div>
 
       <div className="space-y-4">

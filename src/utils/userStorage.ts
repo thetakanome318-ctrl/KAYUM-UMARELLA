@@ -79,6 +79,7 @@ export function addUser(newUser: {
   password: string;
   name: string;
   role: UserRole;
+  photo?: string;
 }): { success: boolean; message: string; user?: UserAccount } {
   const currentUsers = getUsersList();
   const trimmedUsername = newUser.username.trim().toLowerCase();
@@ -99,6 +100,7 @@ export function addUser(newUser: {
     name: newUser.name.trim(),
     role: newUser.role,
     createdAt: new Date().toISOString(),
+    photo: newUser.photo,
   };
 
   const updatedUsers = [...currentUsers, createdUser];
@@ -127,6 +129,20 @@ export function deleteUser(id: string): { success: boolean; message: string } {
   saveUsersList(updatedUsers);
 
   return { success: true, message: `User "${userToDelete.username}" berhasil dihapus.` };
+}
+
+export function updateUserPhoto(id: string, photoBase64: string): { success: boolean; message: string } {
+  const currentUsers = getUsersList();
+  const userIndex = currentUsers.findIndex((u) => u.id === id);
+  
+  if (userIndex === -1) {
+    return { success: false, message: 'User tidak ditemukan.' };
+  }
+
+  currentUsers[userIndex].photo = photoBase64;
+  saveUsersList(currentUsers);
+  
+  return { success: true, message: `Foto profil berhasil diperbarui.` };
 }
 
 export function resetUsersToDefault(): UserAccount[] {

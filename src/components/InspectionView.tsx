@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ROWRecord } from '../types';
 import { formatBulan } from '../utils/calculations';
-import { Search, Calendar, ChevronDown } from 'lucide-react';
+import { Search, Calendar, ChevronDown, FileText } from 'lucide-react';
 
 interface InspectionViewProps {
   records: ROWRecord[];
@@ -25,6 +25,24 @@ export const InspectionView: React.FC<InspectionViewProps> = ({
         return matchesSearch && matchesType;
     }).sort((a,b) => (b.tanggal || '').localeCompare(a.tanggal || ''));
   }, [records, searchTerm, filterType, filterYear, filterMonth]);
+
+  const handleExportCsv = () => {
+    const DELIM = ';';
+    const lines = [
+      'sep=;',
+      `"TIMELINE INSPEKSI / ROW"`,
+      `"Tanggal"${DELIM}"Tipe"${DELIM}"Penyulang"${DELIM}"Section"${DELIM}"Temuan Konstruksi"${DELIM}"Jumlah Temuan Pohon"${DELIM}"Realisasi Pangkas"${DELIM}"Catatan"`,
+      ...filteredRecords.map(r => `"${r.tanggal || '-'}"${DELIM}"${r.inspectionType ? r.inspectionType : 'ROW'}"${DELIM}"${r.penyulang || '-'}"${DELIM}"${r.section || '-'}"${DELIM}"${r.temuanKonstruksi || 0}"${DELIM}"${r.jumlahTemuan || 0}"${DELIM}"${r.realisasiTemuan || 0}"${DELIM}"${r.catatan || '-'}"`)
+    ];
+    const blob = new Blob(["\uFEFF" + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Timeline_Inspeksi_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Group by Month
   const groupedByMonth = useMemo(() => {
@@ -56,7 +74,12 @@ export const InspectionView: React.FC<InspectionViewProps> = ({
              <select className={`px-3 py-2 text-xs rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800 border-slate-700'}`} value={filterMonth} onChange={e => setFilterMonth(e.target.value)}>
                 <option value="Semua Bulan">Semua Bulan</option>
             </select>
-            <button className="px-4 py-2 text-xs font-bold bg-emerald-500 text-slate-950 rounded-xl hover:bg-emerald-400">Cari</button>
+            <div className="flex gap-2">
+                <button className="px-4 py-2 text-xs font-bold bg-emerald-500 text-slate-950 rounded-xl hover:bg-emerald-400">Cari</button>
+                <button onClick={handleExportCsv} className="px-4 py-2 text-xs font-bold bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 flex items-center gap-2">
+                    <FileText className="w-4 h-4" /> Excel
+                </button>
+            </div>
         </div>
 
       {/* Timeline View */}

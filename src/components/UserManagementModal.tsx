@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
-import { X, UserPlus, Shield, User, KeyRound, Trash2, CheckCircle2, AlertCircle, Eye, EyeOff, Users, RefreshCw } from 'lucide-react';
+import { X, UserPlus, Shield, User, KeyRound, Trash2, CheckCircle2, AlertCircle, Eye, EyeOff, Users, RefreshCw, Image as ImageIcon } from 'lucide-react';
 import { UserAccount, UserRole } from '../types';
-import { getUsersList, addUser, deleteUser, resetUsersToDefault } from '../utils/userStorage';
+import { getUsersList, addUser, deleteUser, resetUsersToDefault, updateUserPhoto } from '../utils/userStorage';
 
 interface UserManagementModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentUser: { username: string; name: string; role: string };
+  currentUser: { username: string; name: string; role: string; photo?: string };
+  onUserUpdate?: (updatedUser: UserAccount) => void;
 }
 
 export const UserManagementModal: React.FC<UserManagementModalProps> = ({
   isOpen,
   onClose,
   currentUser,
+  onUserUpdate,
 }) => {
   const [users, setUsers] = useState<UserAccount[]>(() => getUsersList());
   const [isAdding, setIsAdding] = useState(false);
@@ -23,6 +25,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
   const [newName, setNewName] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<UserRole>('Operator');
+  const [newPhoto, setNewPhoto] = useState<string>('');
 
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -30,6 +33,17 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
 
   const refreshList = () => {
     setUsers(getUsersList());
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewPhoto(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleAddUserSubmit = (e: React.FormEvent) => {
@@ -41,6 +55,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       name: newName,
       password: newPassword,
       role: newRole,
+      photo: newPhoto,
     });
 
     if (res.success) {
@@ -49,6 +64,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       setNewName('');
       setNewPassword('');
       setNewRole('Operator');
+      setNewPhoto('');
       setIsAdding(false);
       refreshList();
     } else {
@@ -78,6 +94,28 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       resetUsersToDefault();
       refreshList();
       setNotification({ type: 'success', message: 'Daftar pengguna berhasil di-reset ke default.' });
+    }
+  };
+
+  const handleUpdateUserPhoto = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const res = updateUserPhoto(id, reader.result as string);
+        if (res.success) {
+          refreshList();
+          // Check if updated user is current user
+          const updatedUsersList = getUsersList();
+          const updatedUser = updatedUsersList.find(u => u.id === id);
+          if (updatedUser && updatedUser.username === currentUser.username && onUserUpdate) {
+            onUserUpdate(updatedUser);
+          }
+        } else {
+          setNotification({ type: 'error', message: res.message });
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -260,11 +298,39 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                   >
                     <option value="Operator">Operator (Input &amp; Edit Data)</option>
                     <option value="Petugas Lapangan">Petugas Lapangan (Input &amp; Form)</option>
-                    <option value="Team Leader">Team Leader (Akses Input &amp; Monitoring)</option>
+                    <option value="Team Leader">Team Leader (Akses Monitoring - Read Only)</option>
                     <option value="Manager">Manager (Status Monitoring - Read Only)</option>
                     <option value="Koordinator">Koordinator (Status Monitoring - Read Only)</option>
                     <option value="Admin System">Admin System (Akses Penuh + User Admin)</option>
                   </select>
+                </div>
+
+                {/* Photo Upload */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Foto Profil (Opsional)
+                  </label>
+                  <div className="relative flex items-center space-x-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      className="hidden"
+                      id="upload-photo"
+                    />
+                    <label
+                      htmlFor="upload-photo"
+                      className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 text-xs bg-slate-900 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-slate-100 focus:outline-none focus:border-emerald-500 font-medium cursor-pointer transition"
+                    >
+                      <ImageIcon className="w-4 h-4 text-slate-500" />
+                      <span className="truncate">{newPhoto ? 'Foto Dipilih' : 'Pilih Foto...'}</span>
+                    </label>
+                    {newPhoto && (
+                      <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex-shrink-0 overflow-hidden">
+                        <img src={newPhoto} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -300,8 +366,24 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                 return (
                   <div key={u.id} className="p-3.5 flex items-center justify-between hover:bg-slate-900/50 transition">
                     <div className="flex items-center space-x-3 min-w-0">
-                      <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-200 font-bold text-xs shrink-0">
-                        {u.username.charAt(0).toUpperCase()}
+                      <div className="relative group w-9 h-9 shrink-0">
+                        <label htmlFor={`update-photo-${u.id}`} className="block w-full h-full rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-200 font-bold text-xs overflow-hidden cursor-pointer hover:border-emerald-500 transition relative">
+                          {u.photo ? (
+                            <img src={u.photo} alt={u.name} className="w-full h-full object-cover group-hover:opacity-50 transition" />
+                          ) : (
+                            <span className="group-hover:opacity-50 transition">{u.username.charAt(0).toUpperCase()}</span>
+                          )}
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition pointer-events-none">
+                            <ImageIcon className="w-4 h-4 text-emerald-400" />
+                          </div>
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          id={`update-photo-${u.id}`}
+                          className="hidden"
+                          onChange={(e) => handleUpdateUserPhoto(u.id, e)}
+                        />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center space-x-2">

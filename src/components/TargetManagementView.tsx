@@ -4,8 +4,10 @@ import {
   saveMonthlyTargetToCloud 
 } from '../lib/firebase';
 import { MonthlyTargetItem } from '../utils/targetStorage';
-import { Calendar, Target, TrendingUp, Info } from 'lucide-react';
+import { Calendar, Target, TrendingUp, Info, FileText, FileSpreadsheet } from 'lucide-react';
 import { formatNumber } from '../utils/calculations';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface TargetManagementViewProps {
   isLight: boolean;
@@ -24,19 +26,13 @@ export const TargetManagementView: React.FC<TargetManagementViewProps> = ({ isLi
     const bulanKey = `${selectedYear}-${String(bulanKe).padStart(2, '0')}`;
     const existing = targetsMap[bulanKey];
     
-    let targetKms = updates.targetKms !== undefined ? updates.targetKms : (existing ? existing.targetKms : 0);
     let targetGawang = updates.targetGawang !== undefined ? updates.targetGawang : (existing ? existing.targetGawang : 0);
     
-    // Auto calculate Gawang based on KMS if targetKms is updated
-    if (updates.targetKms !== undefined) {
-      targetGawang = targetKms * 20;
-    }
-
     const newTarget: MonthlyTargetItem = {
       bulanKey,
       tahun: selectedYear,
       bulanKe,
-      targetKms,
+      targetKms: 0,
       targetGawang,
       targetPohon: updates.targetPohon !== undefined ? updates.targetPohon : (existing ? existing.targetPohon : 0),
       workDays: updates.workDays !== undefined ? updates.workDays : (existing ? (existing.workDays || 22) : 22),
@@ -60,6 +56,56 @@ export const TargetManagementView: React.FC<TargetManagementViewProps> = ({ isLi
     { id: 12, nama: 'Desember' }
   ];
 
+  const handleExportTargetsCsv = () => {
+    const DELIM = ';';
+    const lines = [
+      'sep=;',
+      `"TARGET BULANAN TAHUN ${selectedYear} ULP BAGUALA"`,
+      `"Bulan"${DELIM}"Target Gawang"${DELIM}"Target Pohon"${DELIM}"Hari Kerja"`,
+      ...months.map(m => {
+        const key = `${selectedYear}-${String(m.id).padStart(2, '0')}`;
+        const t = targetsMap[key];
+        return `"${m.nama}";"${t?.targetGawang || 0}";"${t?.targetPohon || 0}";"${t?.workDays || 22}"`;
+      })
+    ];
+    const blob = new Blob(["\uFEFF" + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Target_Bulanan_${selectedYear}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportTargetsPdf = () => {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    doc.setFillColor(147, 51, 234);
+    doc.rect(0, 0, 210, 25, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`PLN (PERSERO) — TARGET BULANAN TAHUN ${selectedYear} ULP BAGUALA`, 14, 12);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 18);
+
+    const rows = months.map(m => {
+      const key = `${selectedYear}-${String(m.id).padStart(2, '0')}`;
+      const t = targetsMap[key];
+      return [m.nama, `${t?.targetGawang || 0} Gawang`, `${t?.targetPohon || 0} pohon`, `${t?.workDays || 22} hari`];
+    });
+
+    autoTable(doc, {
+      startY: 32,
+      head: [['Bulan', 'Target Gawang', 'Target Pohon', 'Hari Kerja']],
+      body: rows,
+      theme: 'grid',
+      headStyles: { fillColor: [147, 51, 234], textColor: [255, 255, 255], fontStyle: 'bold' }
+    });
+    doc.save(`Target_Bulanan_${selectedYear}.pdf`);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header Section */}
@@ -80,6 +126,20 @@ export const TargetManagementView: React.FC<TargetManagementViewProps> = ({ isLi
           </div>
 
           <div className="flex items-center space-x-3">
+            <button
+              onClick={handleExportTargetsCsv}
+              className="px-3 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-md flex items-center space-x-1.5 cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Excel</span>
+            </button>
+            <button
+              onClick={handleExportTargetsPdf}
+              className="px-3 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white rounded-xl shadow-md flex items-center space-x-1.5 cursor-pointer"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>PDF</span>
+            </button>
             <div className={`flex items-center px-4 py-2 rounded-xl border ${
               isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800 border-slate-700'
             }`}>
@@ -115,7 +175,6 @@ export const TargetManagementView: React.FC<TargetManagementViewProps> = ({ isLi
           const bulanKey = `${selectedYear}-${String(m.id).padStart(2, '0')}`;
           const target = targetsMap[bulanKey] || { targetKms: 0, targetGawang: 0, targetPohon: 0, workDays: 22 };
           const workDays = target.workDays || 22;
-          const dailyKms = workDays > 0 ? target.targetKms / workDays : 0;
           const dailyGawang = workDays > 0 ? Math.round(target.targetGawang / workDays) : 0;
 
           return (
@@ -143,35 +202,6 @@ export const TargetManagementView: React.FC<TargetManagementViewProps> = ({ isLi
               </div>
 
               <div className="space-y-6">
-                {/* KMS Target */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Target KMS (Bulan)</label>
-                    <TrendingUp className="w-3 h-3 text-emerald-500" />
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      step="0.01"
-                      defaultValue={target.targetKms}
-                      onBlur={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        if (val !== target.targetKms) handleUpdateTarget(m.id, { targetKms: val });
-                      }}
-                      className={`w-full pl-4 pr-12 py-2.5 text-base font-bold rounded-xl border outline-none transition-all ${
-                        isLight 
-                          ? 'bg-slate-50 border-slate-200 focus:border-purple-400 focus:bg-white text-slate-800' 
-                          : 'bg-slate-800/50 border-slate-700 focus:border-purple-500 focus:bg-slate-800 text-white'
-                      }`}
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-500">KMS</span>
-                  </div>
-                  <div className={`p-2.5 rounded-xl flex items-center justify-between ${isLight ? 'bg-emerald-50' : 'bg-emerald-500/5'}`}>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase">Target Harian</span>
-                    <span className="text-sm font-black text-emerald-500">{formatNumber(dailyKms, 3)} KMS</span>
-                  </div>
-                </div>
-
                 {/* Gawang Target */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">

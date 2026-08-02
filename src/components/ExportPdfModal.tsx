@@ -95,14 +95,12 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
   // Summaries calculation for preview card
   const previewStats = useMemo(() => {
     const totalCount = filteredRecordsForExport.length;
-    const targetKms = filteredRecordsForExport.reduce((sum, r) => sum + (r.targetKms || 0), 0);
     const realisasiKms = filteredRecordsForExport.reduce((sum, r) => sum + (r.realisasiKms || 0), 0);
     const targetGawang = filteredRecordsForExport.reduce((sum, r) => sum + (r.realisasiGawang || 0), 0);
     const temuanPohon = filteredRecordsForExport.reduce((sum, r) => sum + (r.jumlahTemuan || 0), 0);
     const pangkasPohon = filteredRecordsForExport.reduce((sum, r) => sum + (r.realisasiTemuan || 0), 0);
     
     const sisaPohon = temuanPohon - pangkasPohon;
-    const persentaseKms = targetKms > 0 ? (realisasiKms / targetKms) * 100 : 0;
     const persentasePohon = temuanPohon > 0 ? (pangkasPohon / temuanPohon) * 100 : 0;
 
     const perluPadam = filteredRecordsForExport.filter(r => r.perluPadam).length;
@@ -111,13 +109,11 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
 
     return {
       totalCount,
-      targetKms,
       realisasiKms,
       targetGawang,
       temuanPohon,
       pangkasPohon,
       sisaPohon,
-      persentaseKms,
       persentasePohon,
       perluPadam,
       tidakAdaIzin,
@@ -256,9 +252,9 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(100, 116, 139);
-    doc.text(`Target: ${formatNumber(previewStats.targetKms, 1)} KMS (${previewStats.persentaseKms.toFixed(0)}%)`, 134, 57);
+    doc.text(`Realisasi Gawang: ${previewStats.targetGawang} Span`, 134, 57);
 
-    // KPI 4: Gawang & Kendala
+    // KPI 4: Kendala
     doc.setTextColor(71, 85, 105);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
@@ -267,26 +263,21 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
     doc.setFontSize(11);
     doc.setTextColor(15, 23, 42);
     doc.text(`${previewStats.perluPadam} Padam | ${previewStats.tidakAdaIzin} Izin | ${previewStats.pohonBesar} P.Besar`, 204, 52);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(100, 116, 139);
-    doc.text(`Realisasi Gawang: ${previewStats.targetGawang} Span`, 204, 57);
 
     // --- VISUAL GRAPHICS & ANALYTICS CHARTS (PAGE 1) ---
     // Aggregation for Chart A (KMS Achievement per Penyulang)
-    const penyulangKmsMap: Record<string, { target: number; real: number }> = {};
+    const penyulangKmsMap: Record<string, { real: number }> = {};
     filteredRecordsForExport.forEach(r => {
       const p = r.penyulang || 'Rutin/Umum';
       if (!penyulangKmsMap[p]) {
-        penyulangKmsMap[p] = { target: 0, real: 0 };
+        penyulangKmsMap[p] = { real: 0 };
       }
-      penyulangKmsMap[p].target += r.targetKms || 0;
       penyulangKmsMap[p].real += r.realisasiKms || 0;
     });
 
     const chartAPenyulangs = Object.entries(penyulangKmsMap)
       .map(([name, data]) => ({ name, ...data }))
-      .sort((a, b) => b.target - a.target)
+      .sort((a, b) => b.real - a.real)
       .slice(0, 5); // top 5
 
     // Aggregation for Chart B (Monthly Tree Trimming Progress)
@@ -315,21 +306,17 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(30, 41, 59);
-    doc.text('TARGET VS REALISASI KMS PER PENYULANG', 20, 77);
+    doc.text('REALISASI KMS PER PENYULANG', 20, 77);
 
     // Legend for Chart A
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
-    doc.setFillColor(203, 213, 225); // Target (gray)
-    doc.rect(20, 81, 3.5, 3.5, 'F');
     doc.setTextColor(100, 116, 139);
-    doc.text('Target KMS', 25, 84);
-
     doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]); // Realisasi (primary color)
-    doc.rect(55, 81, 3.5, 3.5, 'F');
-    doc.text('Realisasi KMS', 60, 84);
+    doc.rect(20, 81, 3.5, 3.5, 'F');
+    doc.text('Realisasi KMS', 25, 84);
 
-    const maxKms = Math.max(...chartAPenyulangs.map(p => Math.max(p.target, p.real)), 1);
+    const maxKms = Math.max(...chartAPenyulangs.map(p => p.real), 1);
     const scaleKms = 58 / maxKms; // 58 mm max bar width
 
     chartAPenyulangs.forEach((item, idx) => {
@@ -343,35 +330,17 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
       doc.text(cleanName.toUpperCase(), 20, rowY);
 
       // Bars
-      const targetW = item.target * scaleKms;
       const realW = item.real * scaleKms;
-
-      // Target bar
-      doc.setFillColor(241, 245, 249);
-      doc.rect(20, rowY + 2, 58, 3, 'F'); // background track
-      doc.setFillColor(203, 213, 225);
-      doc.rect(20, rowY + 2, Math.max(0.5, Math.min(58, targetW)), 3, 'F'); // target filled
 
       // Realisasi bar
       doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.rect(20, rowY + 6.5, Math.max(0.5, Math.min(58, realW)), 3, 'F');
+      doc.rect(20, rowY + 3, Math.max(0.5, Math.min(58, realW)), 4, 'F');
 
-      // Capaian calculation & Text
-      const pct = item.target > 0 ? (item.real / item.target) * 100 : 0;
+      // Text
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
       doc.setTextColor(71, 85, 105);
-      doc.text(`Rl: ${formatNumber(item.real, 1)} / Tgt: ${formatNumber(item.target, 1)} KMS`, 82, rowY + 3.5);
-      
-      let pctColor = [239, 68, 68]; // red
-      if (pct >= 100) {
-        pctColor = [16, 185, 129]; // emerald
-      } else if (pct >= 80) {
-        pctColor = [245, 158, 11]; // amber
-      }
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(pctColor[0], pctColor[1], pctColor[2]);
-      doc.text(`${pct.toFixed(0)}% Capaian`, 82, rowY + 8);
+      doc.text(`Realisasi: ${formatNumber(item.real, 1)} KMS`, 82, rowY + 5.5);
     });
 
     // RENDER CHART B: MONTHLY TREE TRIMMING PROGRESS
@@ -453,7 +422,6 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
       'Bulan',
       'Penyulang',
       'Section Jaringan',
-      'Target KMS',
       'Real KMS',
       'Real Span',
       'Realisasi Pohon',
@@ -482,7 +450,6 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
         formatBulan(r.bulan),
         r.penyulang || 'Rutin/Umum',
         r.section,
-        `${formatNumber(r.targetKms, 1)} KMS`,
         `${formatNumber(r.realisasiKms, 1)} KMS`,
         `${r.realisasiGawang || 0} Span`,
         `${r.realisasiTemuan} / ${r.jumlahTemuan} (${completionPct}%)`,
@@ -515,14 +482,13 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
         1: { cellWidth: 16, halign: 'center' }, // Tanggal
         2: { cellWidth: 16 }, // Bulan
         3: { cellWidth: 26 }, // Penyulang
-        4: { cellWidth: 24 }, // Section
-        5: { cellWidth: 15, halign: 'right' }, // Target KMS
-        6: { cellWidth: 15, halign: 'right' }, // Real KMS
-        7: { cellWidth: 14, halign: 'center' }, // Span
-        8: { cellWidth: 22, halign: 'center' }, // Realisasi Pohon
-        9: { cellWidth: 24, halign: 'center' }, // Koordinat
-        10: { cellWidth: 22 }, // Kendala
-        11: { cellWidth: 'auto' } // Catatan
+        4: { cellWidth: 35 }, // Section
+        5: { cellWidth: 20, halign: 'right' }, // Real KMS
+        6: { cellWidth: 16, halign: 'center' }, // Span
+        7: { cellWidth: 24, halign: 'center' }, // Realisasi Pohon
+        8: { cellWidth: 26, halign: 'center' }, // Koordinat
+        9: { cellWidth: 24 }, // Kendala
+        10: { cellWidth: 'auto' } // Catatan
       },
       alternateRowStyles: {
         fillColor: [248, 250, 252]
@@ -849,9 +815,9 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
                     <span className="text-[9px] text-emerald-600 font-medium">Lolos filter siap ekspor</span>
                   </div>
                   <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Capaian Realisasi KMS</span>
-                    <p className="text-lg font-black text-emerald-600 mt-1">{previewStats.persentaseKms.toFixed(0)}%</p>
-                    <span className="text-[9px] text-slate-500 font-medium">Realisasi {formatNumber(previewStats.realisasiKms, 1)} KMS</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Realisasi KMS</span>
+                    <p className="text-lg font-black text-emerald-600 mt-1">{formatNumber(previewStats.realisasiKms, 1)} KMS</p>
+                    <span className="text-[9px] text-slate-500 font-medium">Total jarak yang tuntas</span>
                   </div>
                   <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
                     <span className="text-[10px] font-bold text-slate-400 uppercase">Total Temuan Pohon</span>
@@ -898,7 +864,7 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
                 <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg p-2.5 text-[10px] text-emerald-800 flex items-start space-x-1.5 leading-relaxed">
                   <Info className="w-4 h-4 text-emerald-600 shrink-0" />
                   <p>
-                    PDF menggunakan format **Landscape A4** agar seluruh data pangkas, target KMS, koordinat map GPS, dan kendala dapat tersusun dalam satu baris rapi dan berstandar internasional.
+                    PDF menggunakan format **Landscape A4** agar seluruh data pangkas, koordinat map GPS, dan kendala dapat tersusun dalam satu baris rapi dan berstandar internasional.
                   </p>
                 </div>
               </div>

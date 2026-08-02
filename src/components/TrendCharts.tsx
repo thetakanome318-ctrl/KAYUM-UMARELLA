@@ -10,7 +10,8 @@ import {
   Tooltip,
   Legend,
   Area,
-  BarChart
+  BarChart,
+  LineChart
 } from 'recharts';
 import { ROWRecord } from '../types';
 import { formatBulan } from '../utils/calculations';
@@ -29,11 +30,9 @@ export const TrendCharts: React.FC<TrendChartsProps> = ({ records, monthlyTarget
       label: string;
       totalTemuan: number;
       realisasiTemuan: number;
-      targetKms: number;
       realisasiKms: number;
       realisasiGawang: number;
       persentaseTemuan: number;
-      persentaseKms: number;
     }> = {};
 
     records.forEach((r) => {
@@ -44,16 +43,13 @@ export const TrendCharts: React.FC<TrendChartsProps> = ({ records, monthlyTarget
           label: formatBulan(key),
           totalTemuan: 0,
           realisasiTemuan: 0,
-          targetKms: monthlyTargetsMap?.[key]?.targetKms || 0,
           realisasiKms: 0,
           realisasiGawang: 0,
           persentaseTemuan: 0,
-          persentaseKms: 0,
         };
       }
       monthMap[key].totalTemuan += r.jumlahTemuan || 0;
       monthMap[key].realisasiTemuan += r.realisasiTemuan || 0;
-      // We don't sum r.targetKms anymore as it's global per month
       monthMap[key].realisasiKms += r.realisasiKms || 0;
       monthMap[key].realisasiGawang += r.realisasiGawang || 0;
     });
@@ -63,10 +59,33 @@ export const TrendCharts: React.FC<TrendChartsProps> = ({ records, monthlyTarget
       .map((item) => ({
         ...item,
         persentaseTemuan: item.totalTemuan > 0 ? Number(((item.realisasiTemuan / item.totalTemuan) * 100).toFixed(1)) : 0,
-        persentaseKms: item.targetKms > 0 ? Number(((item.realisasiKms / item.targetKms) * 100).toFixed(1)) : 0,
-        targetKms: Number(item.targetKms.toFixed(1)),
         realisasiKms: Number(item.realisasiKms.toFixed(1)),
       }));
+  }, [records, monthlyTargetsMap]);
+
+  // Aggregate monthly gangguan trend by penyulang or overall monthly gangguan count
+  const monthlyGangguanTrendData = useMemo(() => {
+    const monthMap: Record<string, {
+      bulanKey: string;
+      label: string;
+      jumlahGangguan: number;
+    }> = {};
+
+    records.forEach((r) => {
+      if (r.gangguan === true) {
+        const key = r.bulan;
+        if (!monthMap[key]) {
+          monthMap[key] = {
+            bulanKey: key,
+            label: formatBulan(key),
+            jumlahGangguan: 0,
+          };
+        }
+        monthMap[key].jumlahGangguan += 1;
+      }
+    });
+
+    return Object.values(monthMap).sort((a, b) => a.bulanKey.localeCompare(b.bulanKey));
   }, [records]);
 
   // Aggregate data by Penyulang for obstacles breakdown
@@ -104,6 +123,54 @@ export const TrendCharts: React.FC<TrendChartsProps> = ({ records, monthlyTarget
 
   return (
     <div className="space-y-6">
+      
+      {/* CHART NEW: Tren Kenaikan / Penurunan Jumlah Gangguan Penyulang dari Bulan ke Bulan */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 mb-4 gap-2">
+          <div>
+            <h3 className="text-base font-bold text-slate-900">
+              Tren Bulanan Jumlah Gangguan Penyulang (Evaluasi Efektivitas ROW)
+            </h3>
+            <p className="text-xs text-slate-500">
+              Membandingkan fluktuasi penurunan atau kenaikan frekuensi gangguan dari bulan ke bulan
+            </p>
+          </div>
+          <div className="flex items-center space-x-2 text-xs font-semibold px-3 py-1 bg-rose-50 border border-rose-100 text-rose-600 rounded-lg">
+            <span className="w-2.5 h-2.5 bg-rose-500 rounded-full inline-block animate-pulse" />
+            <span>Tracking Gangguan Penyulang</span>
+          </div>
+        </div>
+
+        <div className="h-72 w-full">
+          {monthlyGangguanTrendData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={monthlyGangguanTrendData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={{ stroke: '#cbd5e1' }} />
+                <YAxis tick={{ fontSize: 12, fill: '#64748b' }} axisLine={{ stroke: '#cbd5e1' }} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
+                  formatter={(value: any) => [`${value} gangguan`, 'Jumlah Gangguan']}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="jumlahGangguan" 
+                  name="Jumlah Gangguan" 
+                  stroke="#e11d48" 
+                  strokeWidth={3} 
+                  dot={{ r: 5, fill: '#e11d48', strokeWidth: 2, stroke: '#fff' }} 
+                  activeDot={{ r: 7 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full flex items-center justify-center text-slate-400 text-xs">
+              Tidak ada data gangguan tercatat untuk perbandingan bulanan.
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* CHART 1: Tren Penyelesaian Temuan Dari Waktu ke Waktu */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 mb-4 gap-2">
@@ -161,14 +228,14 @@ export const TrendCharts: React.FC<TrendChartsProps> = ({ records, monthlyTarget
         </div>
       </div>
 
-      {/* CHART 2: Target KMS Bulanan vs Realisasi KMS & Realisasi Gawang */}
+      {/* CHART 2: Realisasi KMS Bulanan & Realisasi Gawang */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* KMS Achievement Chart */}
         <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm">
           <div className="pb-3 border-b border-slate-100 mb-4">
             <h3 className="text-sm font-bold text-slate-900">
-              Target Bulanan KMS vs Realisasi KMS
+              Realisasi Bulanan KMS
             </h3>
             <p className="text-xs text-slate-500">
               Pengukuran panjang penyulang (KMS) yang telah bebas dari ROW
@@ -184,13 +251,11 @@ export const TrendCharts: React.FC<TrendChartsProps> = ({ records, monthlyTarget
                   <Tooltip
                     contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
                     formatter={(value: any, name: any) => {
-                      if (name === 'targetKms') return [`${value} KMS`, 'Target KMS'];
                       if (name === 'realisasiKms') return [`${value} KMS`, 'Realisasi KMS'];
                       return [value, name];
                     }}
                   />
                   <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                  <Bar dataKey="targetKms" name="Target KMS" fill="#94a3b8" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="realisasiKms" name="Realisasi KMS" fill="#059669" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -246,3 +311,4 @@ export const TrendCharts: React.FC<TrendChartsProps> = ({ records, monthlyTarget
     </div>
   );
 };
+

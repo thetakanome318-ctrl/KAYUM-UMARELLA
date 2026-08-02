@@ -8,13 +8,16 @@ import {
   saveMasterSectionToCloud,
   deleteMasterSectionFromCloud
 } from '../lib/firebase';
-import { Plus, Trash2, Save, Search, Database, Layers, Edit, Users } from 'lucide-react';
+import { Plus, Trash2, Save, Search, Database, Layers, Edit, Users, FileText, FileSpreadsheet } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface MasterDataViewProps {
   isLight: boolean;
+  isReadOnly?: boolean;
 }
 
-export const MasterDataView: React.FC<MasterDataViewProps> = ({ isLight }) => {
+export const MasterDataView: React.FC<MasterDataViewProps> = ({ isLight, isReadOnly }) => {
   const [activeSubTab, setActiveSubTab] = useState<'penyulang' | 'section'>('penyulang');
   
   // Penyulang State
@@ -35,6 +38,88 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ isLight }) => {
     jumlahPelanggan: 0,
     keterangan: ''
   });
+
+  const handleExportPenyulangCsv = () => {
+    const DELIM = ';';
+    const lines = [
+      'sep=;',
+      `"MASTER DATA PENYULANG ULP BAGUALA"`,
+      `"Nama Penyulang"${DELIM}"Kode / ID"${DELIM}"Panjang Jaringan (KMS)"`,
+      ...filteredPenyulang.map(p => `"${p.nama}";"${p.kode || '-'}";"${p.panjangJaringan || 0}"`)
+    ];
+    const blob = new Blob(["\uFEFF" + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Master_Penyulang_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportPenyulangPdf = () => {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    doc.setFillColor(79, 70, 229);
+    doc.rect(0, 0, 210, 25, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PLN (PERSERO) — MASTER DATA PENYULANG ULP BAGUALA', 14, 12);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Dicetak: ${new Date().toLocaleString('id-ID')} | Total: ${filteredPenyulang.length} Penyulang`, 14, 18);
+
+    const rows = filteredPenyulang.map((p, idx) => [idx + 1, p.nama, p.kode || '-', `${p.panjangJaringan || 0} KMS`]);
+    autoTable(doc, {
+      startY: 32,
+      head: [['No', 'Nama Penyulang', 'Kode', 'Panjang Jaringan']],
+      body: rows,
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' }
+    });
+    doc.save(`Master_Penyulang_${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
+  const handleExportSectionCsv = () => {
+    const DELIM = ';';
+    const lines = [
+      'sep=;',
+      `"MASTER DATA SECTION ULP BAGUALA"`,
+      `"Nama Section"${DELIM}"Penyulang"${DELIM}"Jumlah Pelanggan"${DELIM}"Keterangan"`,
+      ...filteredSection.map(s => `"${s.namaSection}";"${s.penyulang || '-'}";"${s.jumlahPelanggan || 0}";"${s.keterangan || '-'}"`)
+    ];
+    const blob = new Blob(["\uFEFF" + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Master_Section_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportSectionPdf = () => {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    doc.setFillColor(16, 185, 129);
+    doc.rect(0, 0, 210, 25, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PLN (PERSERO) — MASTER DATA SECTION ULP BAGUALA', 14, 12);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Dicetak: ${new Date().toLocaleString('id-ID')} | Total: ${filteredSection.length} Section`, 14, 18);
+
+    const rows = filteredSection.map((s, idx) => [idx + 1, s.namaSection, s.penyulang || '-', `${s.jumlahPelanggan || 0} plg`, s.keterangan || '-']);
+    autoTable(doc, {
+      startY: 32,
+      head: [['No', 'Nama Section', 'Penyulang', 'Pelanggan', 'Keterangan']],
+      body: rows,
+      theme: 'grid',
+      headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255], fontStyle: 'bold' }
+    });
+    doc.save(`Master_Section_${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
 
   useEffect(() => {
     const unsubP = subscribePenyulang(setPenyulangList);
@@ -153,17 +238,35 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ isLight }) => {
                 </div>
               </div>
 
-              <button
-                onClick={() => {
-                  setEditingPenyulang(null);
-                  setNewPenyulang({ nama: '', kode: '', panjangJaringan: 0 });
-                  setIsAddingPenyulang(true);
-                }}
-                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center space-x-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Penyulang Baru</span>
-              </button>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={handleExportPenyulangCsv}
+                  className="px-3 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-md flex items-center space-x-1.5 cursor-pointer"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Excel</span>
+                </button>
+                <button
+                  onClick={handleExportPenyulangPdf}
+                  className="px-3 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white rounded-xl shadow-md flex items-center space-x-1.5 cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>PDF</span>
+                </button>
+                {!isReadOnly && (
+                  <button
+                    onClick={() => {
+                      setEditingPenyulang(null);
+                      setNewPenyulang({ nama: '', kode: '', panjangJaringan: 0 });
+                      setIsAddingPenyulang(true);
+                    }}
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center space-x-2 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Penyulang Baru</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -218,22 +321,26 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ isLight }) => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end space-x-2">
-                          <button 
-                            onClick={() => {
-                              setEditingPenyulang(p);
-                              setNewPenyulang({ nama: p.nama, kode: p.kode || '', panjangJaringan: p.panjangJaringan || 0 });
-                              setIsAddingPenyulang(true);
-                            }}
-                            className="p-2 text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleDeletePenyulang(p.id)}
-                            className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {!isReadOnly && (
+                            <>
+                              <button 
+                                onClick={() => {
+                                  setEditingPenyulang(p);
+                                  setNewPenyulang({ nama: p.nama, kode: p.kode || '', panjangJaringan: p.panjangJaringan || 0 });
+                                  setIsAddingPenyulang(true);
+                                }}
+                                className="p-2 text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleDeletePenyulang(p.id)}
+                                className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -271,17 +378,35 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ isLight }) => {
                 </div>
               </div>
 
-              <button
-                onClick={() => {
-                  setEditingSection(null);
-                  setNewSection({ namaSection: '', penyulang: penyulangList[0]?.nama || '', jumlahPelanggan: 0, keterangan: '' });
-                  setIsAddingSection(true);
-                }}
-                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center space-x-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Section Baru</span>
-              </button>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={handleExportSectionCsv}
+                  className="px-3 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-md flex items-center space-x-1.5 cursor-pointer"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Excel</span>
+                </button>
+                <button
+                  onClick={handleExportSectionPdf}
+                  className="px-3 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white rounded-xl shadow-md flex items-center space-x-1.5 cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>PDF</span>
+                </button>
+                {!isReadOnly && (
+                  <button
+                    onClick={() => {
+                      setEditingSection(null);
+                      setNewSection({ namaSection: '', penyulang: penyulangList[0]?.nama || '', jumlahPelanggan: 0, keterangan: '' });
+                      setIsAddingSection(true);
+                    }}
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center space-x-2 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Section Baru</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -343,27 +468,31 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ isLight }) => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end space-x-2">
-                          <button 
-                            onClick={() => {
-                              setEditingSection(s);
-                              setNewSection({ 
-                                namaSection: s.namaSection, 
-                                penyulang: s.penyulang || '', 
-                                jumlahPelanggan: s.jumlahPelanggan || 0,
-                                keterangan: s.keterangan || ''
-                              });
-                              setIsAddingSection(true);
-                            }}
-                            className="p-2 text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteSection(s.id)}
-                            className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {!isReadOnly && (
+                            <>
+                              <button 
+                                onClick={() => {
+                                  setEditingSection(s);
+                                  setNewSection({ 
+                                    namaSection: s.namaSection, 
+                                    penyulang: s.penyulang || '', 
+                                    jumlahPelanggan: s.jumlahPelanggan || 0,
+                                    keterangan: s.keterangan || ''
+                                  });
+                                  setIsAddingSection(true);
+                                }}
+                                className="p-2 text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteSection(s.id)}
+                                className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>

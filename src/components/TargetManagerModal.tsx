@@ -83,13 +83,13 @@ export const TargetManagerModal: React.FC<TargetManagerModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                Kelola Target Bulanan (KMS &amp; Gawang)
+                Kelola Target Bulanan (Gawang &amp; Pohon)
                 <span className="px-2 py-0.5 text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded font-bold">
                   Bulan &amp; Tahun
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
-                Target kerja diisi per <span className="text-purple-300 font-semibold">Bulan &amp; Tahun</span> (tanpa tanggal). Digunakan untuk pemantauan hasil realisasi KMS &amp; Gawang.
+                Target kerja diisi per <span className="text-purple-300 font-semibold">Bulan &amp; Tahun</span> (tanpa tanggal). Digunakan untuk pemantauan hasil realisasi Gawang &amp; Pohon.
               </p>
             </div>
           </div>
@@ -172,8 +172,8 @@ export const TargetManagerModal: React.FC<TargetManagerModalProps> = ({
             <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs font-bold text-slate-300 uppercase tracking-wider">
               <span>Bulan &amp; Tahun Target</span>
               <div className="flex items-center space-x-12 pr-2">
-                <span className="w-24 text-center">Target KMS</span>
                 <span className="w-24 text-center">Target Gawang</span>
+                <span className="w-24 text-center">Target Pohon</span>
               </div>
             </div>
 
@@ -204,21 +204,6 @@ export const TargetManagerModal: React.FC<TargetManagerModalProps> = ({
                     </div>
 
                     <div className="flex items-center space-x-6">
-                      {/* Target KMS Input */}
-                      <div className="flex items-center space-x-1">
-                        <input
-                          type="number"
-                          step="0.5"
-                          min="0"
-                          value={tItem.targetKms}
-                          onChange={(e) =>
-                            handleTargetChange(b.monthKe, 'targetKms', parseFloat(e.target.value) || 0)
-                          }
-                          className="w-20 px-2.5 py-1 text-xs font-bold text-emerald-400 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-emerald-400 text-right"
-                        />
-                        <span className="text-[11px] text-slate-400 font-semibold">KMS</span>
-                      </div>
-
                       {/* Target Gawang Input */}
                       <div className="flex items-center space-x-1">
                         <input
@@ -233,6 +218,21 @@ export const TargetManagerModal: React.FC<TargetManagerModalProps> = ({
                         />
                         <span className="text-[11px] text-slate-400 font-semibold">Gawang</span>
                       </div>
+
+                      {/* Target Pohon Input */}
+                      <div className="flex items-center space-x-1">
+                        <input
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={tItem.targetPohon || 0}
+                          onChange={(e) =>
+                            handleTargetChange(b.monthKe, 'targetPohon', parseInt(e.target.value, 10) || 0)
+                          }
+                          className="w-20 px-2.5 py-1 text-xs font-bold text-amber-400 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-amber-400 text-right"
+                        />
+                        <span className="text-[11px] text-slate-400 font-semibold">Pohon</span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -244,7 +244,7 @@ export const TargetManagerModal: React.FC<TargetManagerModalProps> = ({
         {/* Modal Footer */}
         <div className="px-6 py-4 border-t border-slate-800 bg-slate-900/90 flex items-center justify-between">
           <p className="text-xs text-slate-400">
-            Perubahan target otomatis memperbarui persentase KPI pada Dashboard &amp; Tren.
+            Perubahan target otomatis memperbarui persentase KPI pada Dashboard.
           </p>
           <div className="flex items-center space-x-2">
             <button

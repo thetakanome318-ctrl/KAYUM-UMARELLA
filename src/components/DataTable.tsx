@@ -1,7 +1,9 @@
 import React from 'react';
 import { ROWRecord } from '../types';
 import { formatBulan, formatNumber } from '../utils/calculations';
-import { Edit3, Trash2, PowerOff, ShieldAlert, TreePine, Eye } from 'lucide-react';
+import { Edit3, Trash2, PowerOff, ShieldAlert, TreePine, Eye, FileText, FileSpreadsheet } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface DataTableProps {
   records: ROWRecord[];
@@ -20,6 +22,99 @@ export const DataTable: React.FC<DataTableProps> = ({
   isReadOnly = false,
   isLight = false,
 }) => {
+  const handleExportSingleCsv = (r: ROWRecord) => {
+    const DELIM = ';';
+    const escapeCsv = (val: any) => {
+      if (val === undefined || val === null) return '""';
+      return `"${String(val).replace(/"/g, '""')}"`;
+    };
+    const lines = [
+      'sep=;',
+      `"DETAIL LAPORAN ROW RECORD"`,
+      `"ID"${DELIM}${escapeCsv(r.id)}`,
+      `"Bulan"${DELIM}${escapeCsv(r.bulan)}`,
+      `"Penyulang"${DELIM}${escapeCsv(r.penyulang)}`,
+      `"Section"${DELIM}${escapeCsv(r.section)}`,
+      `"Realisasi KMS"${DELIM}${escapeCsv(r.realisasiKms)}`,
+      `"Realisasi Gawang"${DELIM}${escapeCsv(r.realisasiGawang)}`,
+      `"Jumlah Temuan Pohon"${DELIM}${escapeCsv(r.jumlahTemuan)}`,
+      `"Realisasi Pangkas Temuan"${DELIM}${escapeCsv(r.realisasiTemuan)}`,
+      `"Luar Temuan"${DELIM}${escapeCsv(r.luarTemuan || 0)}`,
+      `"Realisasi Luar Temuan"${DELIM}${escapeCsv(r.realisasiLuarTemuan || 0)}`,
+      `"Perlu Padam"${DELIM}${escapeCsv(r.perluPadam ? 'Ya' : 'Tidak')}`,
+      `"Tidak Ada Izin"${DELIM}${escapeCsv(r.tidakAdaIzin ? 'Ya' : 'Tidak')}`,
+      `"Pohon Besar"${DELIM}${escapeCsv(r.pohonBesar ? 'Ya' : 'Tidak')}`,
+      `"Catatan"${DELIM}${escapeCsv(r.catatan || '-')}`,
+      `"Tanggal"${DELIM}${escapeCsv(r.tanggal || '-')}`,
+    ];
+    const blob = new Blob(["\uFEFF" + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `ROW_Record_${r.penyulang || 'Umum'}_${(r.section || 'sec').replace(/\s+/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportSinglePdf = (r: ROWRecord) => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    doc.setFillColor(6, 78, 59);
+    doc.rect(0, 0, 210, 30, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PLN (PERSERO) — LAPORAN DETAIL TEMUAN ROW', 14, 12);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Sistem Monitoring Gangguan Penyulang, ROW Pohon & Pengukuran Gardu — ULP Baguala', 14, 20);
+
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Informasi Detail Record:', 14, 40);
+
+    const tableData = [
+      ['ID Record', r.id],
+      ['Bulan / Periode', r.bulan || '-'],
+      ['Nama Penyulang', r.penyulang || '-'],
+      ['Section / Lokasi', r.section || '-'],
+      ['Realisasi KMS', `${r.realisasiKms} KMS`],
+      ['Realisasi Gawang', `${r.realisasiGawang} Gawang`],
+      ['Jumlah Temuan Pohon', `${r.jumlahTemuan} pohon`],
+      ['Realisasi Pangkas', `${r.realisasiTemuan} pohon`],
+      ['Pohon Insidental (Luar Temuan)', `${r.realisasiLuarTemuan || 0} / ${r.luarTemuan || 0}`],
+      ['Kendala Perlu Padam', r.perluPadam ? `Ya (${r.jumlahPerluPadam || 1} titik)` : 'Tidak Ada'],
+      ['Kendala Belum Izin', r.tidakAdaIzin ? `Ya (${r.jumlahTidakAdaIzin || 1} titik)` : 'Tidak Ada'],
+      ['Status Pohon Besar', r.pohonBesar ? `Ya (${r.jumlahPohonBesar || 1} pohon)` : 'Tidak Ada'],
+      ['Catatan Lapangan', r.catatan || '-'],
+      ['Tanggal Input', r.tanggal || '-'],
+    ];
+
+    autoTable(doc, {
+      startY: 45,
+      head: [['Parameter', 'Keterangan Detail']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255], fontStyle: 'bold' },
+      styles: { fontSize: 10, cellPadding: 3 },
+      columnStyles: { 0: { cellWidth: 70, fontStyle: 'bold' }, 1: { cellWidth: 110 } }
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY + 15;
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Laporan ini diterbitkan secara elektronik oleh Sistem Perang Padam Baguala PLN.', 14, finalY);
+    doc.text(`Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 14, finalY + 5);
+
+    doc.save(`Laporan_ROW_${r.penyulang || 'Umum'}_${(r.section || 'sec').replace(/\s+/g, '_')}.pdf`);
+  };
   if (records.length === 0) {
     return (
       <div className={`rounded-xl border p-12 text-center transition-all ${
@@ -47,7 +142,7 @@ export const DataTable: React.FC<DataTableProps> = ({
           Menampilkan <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">{records.length} Baris</span> Data Section ROW
         </span>
 
-        {onDeleteAllRecords && (
+        {!isReadOnly && onDeleteAllRecords && (
           <button
             onClick={onDeleteAllRecords}
             className="px-2.5 py-1 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 transition flex items-center space-x-1 cursor-pointer active:scale-95"
@@ -68,7 +163,6 @@ export const DataTable: React.FC<DataTableProps> = ({
               <th className="py-3 px-3">Bulan</th>
               <th className="py-3 px-3">Penyulang</th>
               <th className="py-3 px-3">Section</th>
-              <th className="py-3 px-3 text-right">Target KMS</th>
               <th className="py-3 px-3 text-right">Realisasi KMS</th>
               <th className="py-3 px-3 text-right">Realisasi Gawang</th>
               <th className="py-3 px-3 text-center">Realisasi / Temuan</th>
@@ -80,7 +174,6 @@ export const DataTable: React.FC<DataTableProps> = ({
           </thead>
           <tbody className={`divide-y text-xs transition-colors duration-300 ${isLight ? 'divide-slate-100 text-slate-800' : 'divide-slate-800/80 text-slate-300'}`}>
             {records.map((r, idx) => {
-              const pctKms = r.targetKms > 0 ? (r.realisasiKms / r.targetKms) * 100 : 0;
               const pctTemuan = r.jumlahTemuan > 0 ? (r.realisasiTemuan / r.jumlahTemuan) * 100 : 0;
 
               return (
@@ -111,17 +204,9 @@ export const DataTable: React.FC<DataTableProps> = ({
                     {r.section}
                   </td>
 
-                  {/* Target KMS */}
-                  <td className={`py-3 px-3 text-right font-medium whitespace-nowrap ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                    {formatNumber(r.targetKms, 2)} KMS
-                  </td>
-
                   {/* Realisasi KMS */}
                   <td className={`py-3 px-3 text-right font-bold whitespace-nowrap ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>
                     {formatNumber(r.realisasiKms, 2)} KMS
-                    <span className="block text-[10px] font-semibold">
-                      ({pctKms.toFixed(0)}%)
-                    </span>
                   </td>
 
                   {/* Realisasi Gawang */}
@@ -201,6 +286,25 @@ export const DataTable: React.FC<DataTableProps> = ({
                   {/* Aksi */}
                   <td className="py-3 px-3 text-center whitespace-nowrap">
                     <div className="flex items-center justify-center space-x-1">
+                      <button
+                        onClick={() => handleExportSingleCsv(r)}
+                        title="Download Excel (CSV) Data Ini"
+                        className={`p-1.5 rounded transition cursor-pointer ${
+                          isLight ? 'text-emerald-700 hover:bg-emerald-50' : 'text-emerald-400 hover:bg-slate-800'
+                        }`}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleExportSinglePdf(r)}
+                        title="Download PDF Laporan Data Ini"
+                        className={`p-1.5 rounded transition cursor-pointer ${
+                          isLight ? 'text-rose-600 hover:bg-rose-50' : 'text-rose-400 hover:bg-slate-800'
+                        }`}
+                      >
+                        <FileSpreadsheet className="w-3.5 h-3.5" />
+                      </button>
+
                       {isReadOnly ? (
                         <button
                           onClick={() => onEditRecord(r)}

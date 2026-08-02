@@ -36,7 +36,6 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
     penyulang: '',
     section: '',
     tanggal: todayStr,
-    targetKms: 10,
     realisasiKms: 0,
     realisasiGawang: 0,
     jumlahTemuan: 0,
@@ -76,7 +75,6 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
         penyulang: '',
         section: '',
         tanggal: todayStr,
-        targetKms: isMapFindingOnly ? 0 : 10,
         realisasiKms: 0,
         realisasiGawang: 0,
         jumlahTemuan: isMapFindingOnly ? 1 : 0,
@@ -200,7 +198,7 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
       penyulang: formData.penyulang ? formData.penyulang.trim() : undefined,
       section: formData.section.trim(),
       tanggal: formData.tanggal || todayStr,
-      targetKms: isMapFindingOnly ? 0 : (Number(formData.targetKms) || 0),
+      targetKms: 0,
       realisasiKms: isMapFindingOnly ? 0 : (Number(formData.realisasiKms) || 0),
       realisasiGawang: isMapFindingOnly ? 0 : (Number(formData.realisasiGawang) || 0),
       jumlahTemuan: isMapFindingOnly ? 1 : (Number(formData.jumlahTemuan) || 0),
@@ -772,9 +770,11 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
                             <div className="flex flex-wrap gap-2">
                               <label className={`flex items-center space-x-1 p-1.5 rounded-md border cursor-pointer transition ${tree.isEksekusi ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-50 border-slate-200'}`}>
                                 <input type="checkbox" checked={tree.isEksekusi} onChange={(e) => {
+                                  const checked = e.target.checked;
                                   const newArr = [...(formData.treeDetails || [])];
-                                  newArr[idx] = { ...newArr[idx], isEksekusi: e.target.checked };
-                                  setFormData({ ...formData, treeDetails: newArr });
+                                  newArr[idx] = { ...newArr[idx], isEksekusi: checked };
+                                  const executedCount = newArr.filter(t => t.isEksekusi).length;
+                                  setFormData({ ...formData, treeDetails: newArr, realisasiTemuan: executedCount });
                                 }} className="w-3 h-3 text-emerald-600 rounded border-slate-300" />
                                 <span className="text-[10px] font-bold text-slate-700">Sudah Eksekusi</span>
                               </label>

@@ -7,6 +7,7 @@ export interface UserAccount {
   name: string;
   role: UserRole;
   createdAt?: string;
+  photo?: string;
 }
 
 export interface TreeDetail {
@@ -42,6 +43,33 @@ export interface ROWRecord {
   inspectionType?: 'Tier 1' | 'Gardu' | 'Tier 2' | 'Dream Mobile';
   temuanKonstruksi?: number;
   temuanGardu?: number;
+
+  // Gardu Measurement Fields
+  kodeGardu?: string;
+  kapasitas?: string | number;
+  jamUkur?: string;
+  arusR?: number;
+  arusS?: number;
+  arusT?: number;
+  teganganRN?: number;
+  teganganSN?: number;
+  teganganTN?: number;
+  teganganRS?: number;
+  teganganST?: number;
+  teganganTR?: number;
+  
+  lin1R?: number;
+  lin1S?: number;
+  lin1T?: number;
+  lin2R?: number;
+  lin2S?: number;
+  lin2T?: number;
+  lin3R?: number;
+  lin3S?: number;
+  lin3T?: number;
+  lin4R?: number;
+  lin4S?: number;
+  lin4T?: number;
   
   // Gangguan Fields
   gangguan?: boolean;
@@ -56,6 +84,14 @@ export interface ROWRecord {
   arusIN?: number;
   penyebab?: string;
   kodeGangguan?: string;
+  
+  // SAIDI SAIFI Fields
+  isSaidiSaifi?: boolean;
+  tanggalPadam?: string;
+  jamPadam?: string;
+  lamaPadamJam?: number;
+  pelangganPadam?: number;
+  totalPelanggan?: number;
   
   // Temuan Pohon Luar Target (Luar Temuan)
   luarTemuan?: number; // Jumlah temuan pohon di luar target/rutin
@@ -116,7 +152,7 @@ export interface KPIStats {
 }
 
 export interface FilterState {
-  tipeData: 'ROW' | 'INSPEKSI' | 'GANGGUAN' | 'GARDU';
+  tipeData: 'ROW' | 'INSPEKSI' | 'GANGGUAN' | 'GARDU' | 'SAIDI_SAIFI';
 }
 
 export interface Penyulang {
@@ -147,4 +183,4 @@ export interface PenyulangTarget {
   updatedAt?: string;
 }
 
-export type ViewTab = 'dashboard' | 'timeline' | 'table' | 'charts' | 'calendar' | 'map' | 'master' | 'target_management' | 'inspection' | 'gangguan' | 'gardu';
+export type ViewTab = 'dashboard' | 'timeline' | 'table' | 'charts' | 'calendar' | 'map' | 'master' | 'target_management' | 'inspection' | 'inspection_monitoring' | 'row_monitoring' | 'gangguan' | 'gardu' | 'saidi_saifi';

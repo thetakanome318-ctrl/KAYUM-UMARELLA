@@ -33,7 +33,12 @@ import { CalendarView } from './components/CalendarView';
 import { MapView } from './components/MapView';
 import { MasterDataView } from './components/MasterDataView';
 import { TargetManagementView } from './components/TargetManagementView';
+import { InspectionMonitoringView } from './components/InspectionMonitoringView';
+import { RowMonitoringView } from './components/RowMonitoringView';
 import { DashboardTargetTable } from './components/DashboardTargetTable';
+import { SaidiSaifiView } from './components/SaidiSaifiView';
+import { TopGangguanPenyulangCard } from './components/TopGangguanPenyulangCard';
+import { TopRowPruningRecommendationCard } from './components/TopRowPruningRecommendationCard';
 import { Plus, Clock, FileSpreadsheet, Sparkles, CheckCircle2, Map as MapIcon, LayoutDashboard, BarChart3, Calendar, Table, TreePine, Download, FileText, LogOut, Save, Users, Database, Target, ChevronDown, ClipboardCheck, Zap } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -47,7 +52,7 @@ export default function App() {
   const [monthlyTargetsMap, setMonthlyTargetsMap] = useState<Record<string, MonthlyTargetItem>>(() => getMonthlyTargetsMap());
 
   // Authentication State
-  const [currentUser, setCurrentUser] = useState<{ username: string; name: string; role: string } | null>(() => {
+  const [currentUser, setCurrentUser] = useState<{ username: string; name: string; role: string; photo?: string } | null>(() => {
     try {
       const saved = localStorage.getItem(AUTH_KEY);
       return saved ? JSON.parse(saved) : null;
@@ -56,7 +61,7 @@ export default function App() {
     }
   });
 
-  const handleLoginSuccess = (user: { username: string; name: string; role: string }) => {
+  const handleLoginSuccess = (user: { username: string; name: string; role: string; photo?: string }) => {
     setCurrentUser(user);
     try {
       localStorage.setItem(AUTH_KEY, JSON.stringify(user));
@@ -434,12 +439,12 @@ export default function App() {
     ].join(DELIM));
 
     csvLines.push([
-      escapeCsv('Target & Realisasi Jarak Jaringan (KMS)'),
-      stats.totalTargetKms,
+      escapeCsv('Realisasi Jarak Jaringan (KMS)'),
+      '-',
       stats.totalRealisasiKms,
-      escapeCsv(`${stats.persentaseKms.toFixed(1)}%`),
-      escapeCsv(generateProgressBar(stats.persentaseKms)),
-      escapeCsv(stats.persentaseKms >= 100 ? 'Target Tercapai' : 'Belum Mencapai Target')
+      '-',
+      '-',
+      escapeCsv('Total KMS Tuntas')
     ].join(DELIM));
 
     csvLines.push([
@@ -504,10 +509,7 @@ export default function App() {
       escapeCsv('Bulan Periode'),
       escapeCsv('Penyulang Terlibat'),
       escapeCsv('Jumlah Section'),
-      escapeCsv('Target KMS Bulanan'),
       escapeCsv('Realisasi KMS Bulanan'),
-      escapeCsv('Capaian Realisasi KMS (%)'),
-      escapeCsv('Grafik Progres KMS'),
       escapeCsv('Realisasi Gawang Bulanan'),
       escapeCsv('Total Temuan Pohon'),
       escapeCsv('Realisasi Temuan Pohon'),
@@ -523,7 +525,6 @@ export default function App() {
       const recs = groupedByBulan[bKey];
       const penyulangInMonth = Array.from(new Set(recs.map((r) => r.penyulang?.trim() || 'Tanpa Penyulang / Umum'))).join(', ');
 
-      const mTargetKms = recs.reduce((a, c) => a + (c.targetKms || 0), 0);
       const mRealisasiKms = recs.reduce((a, c) => a + (c.realisasiKms || 0), 0);
       const mRealisasiGawang = recs.reduce((a, c) => a + (c.realisasiGawang || 0), 0);
       const mTemuan = recs.reduce((a, c) => a + (c.jumlahTemuan || 0), 0);
@@ -533,7 +534,6 @@ export default function App() {
       const mIzin = recs.reduce((a, c) => a + (c.jumlahTidakAdaIzin ?? (c.tidakAdaIzin ? 1 : 0)), 0);
       const mBesar = recs.reduce((a, c) => a + (c.jumlahPohonBesar ?? (c.pohonBesar ? 1 : 0)), 0);
 
-      const mKmsPct = mTargetKms > 0 ? ((mRealisasiKms / mTargetKms) * 100).toFixed(1) + '%' : '0%';
       const mTemuanPct = mTemuan > 0 ? ((mRealTemuan / mTemuan) * 100).toFixed(1) + '%' : '0%';
 
       csvLines.push([
@@ -541,10 +541,7 @@ export default function App() {
         escapeCsv(formatBulan(bKey)),
         escapeCsv(penyulangInMonth),
         recs.length,
-        mTargetKms,
         mRealisasiKms,
-        escapeCsv(mKmsPct),
-        escapeCsv(generateProgressBar(mKmsPct)),
         mRealisasiGawang,
         mTemuan,
         mRealTemuan,
@@ -625,7 +622,6 @@ export default function App() {
       'Tanggal Pelaksanaan',
       'Nama Penyulang',
       'Section Jaringan',
-      'Target KMS',
       'Realisasi KMS',
       'Realisasi Gawang',
       'Jumlah Temuan Pohon',
@@ -640,6 +636,7 @@ export default function App() {
       'Pohon Besar',
       'Catatan / Keterangan'
     ];
+    csvLines.push(tableHeaders.join(DELIM));
 
     sortedMonths.forEach((bulanKey) => {
       const monthName = formatBulan(bulanKey);
@@ -681,7 +678,6 @@ export default function App() {
           escapeCsv(r.tanggal || '-'),
           escapeCsv(r.penyulang || 'Tanpa Penyulang / Umum'),
           escapeCsv(r.section),
-          r.targetKms || 0,
           r.realisasiKms || 0,
           r.realisasiGawang || 0,
           r.jumlahTemuan || 0,
@@ -708,7 +704,6 @@ export default function App() {
         '""',
         '""',
         escapeCsv(`SUBTOTAL BULAN ${monthName.toUpperCase()} (${monthRecords.length} Section)`),
-        subTargetKms,
         subRealisasiKms,
         subRealisasiGawang,
         subJumlahTemuan,
@@ -728,7 +723,6 @@ export default function App() {
     });
 
     // Grand Total Section
-    const grandTargetKms = filteredRecords.reduce((acc, r) => acc + (r.targetKms || 0), 0);
     const grandRealisasiKms = filteredRecords.reduce((acc, r) => acc + (r.realisasiKms || 0), 0);
     const grandRealisasiGawang = filteredRecords.reduce((acc, r) => acc + (r.realisasiGawang || 0), 0);
     const grandJumlahTemuan = filteredRecords.reduce((acc, r) => acc + (r.jumlahTemuan || 0), 0);
@@ -739,7 +733,7 @@ export default function App() {
     const grandPersentase = grandJumlahTemuan > 0 ? ((grandRealisasiTemuan / grandJumlahTemuan) * 100).toFixed(1) + '%' : '0%';
 
     csvLines.push(`"=== REKAPITULASI TOTAL SELURUH MONITORING DISTRIBUSI ==="`);
-    csvLines.push(tableHeaders.map((h) => escapeCsv(h)).join(DELIM));
+    csvLines.push(tableHeaders.map(escapeCsv).join(DELIM));
     const grandTotalRow = [
       '""',
       '""',
@@ -747,7 +741,6 @@ export default function App() {
       '""',
       '""',
       escapeCsv(`TOTAL KESELURUHAN (${filteredRecords.length} Section)`),
-      grandTargetKms,
       grandRealisasiKms,
       grandRealisasiGawang,
       grandJumlahTemuan,
@@ -815,7 +808,6 @@ export default function App() {
       'Tanggal Pelaksanaan',
       'Nama Penyulang',
       'Section Jaringan',
-      'Target KMS',
       'Realisasi KMS',
       'Realisasi Gawang',
       'Jumlah Temuan Pohon',
@@ -843,7 +835,6 @@ export default function App() {
         r.tanggal || '-',
         r.penyulang || 'Tanpa Penyulang / Umum',
         r.section,
-        r.targetKms || 0,
         r.realisasiKms || 0,
         r.realisasiGawang || 0,
         r.jumlahTemuan || 0,
@@ -1178,6 +1169,7 @@ export default function App() {
         onOpenUserModal={() => setIsUserModalOpen(true)}
         theme={theme}
         onToggleTheme={toggleTheme}
+        isReadOnly={isReadOnly}
       />
 
       {/* Main Container */}
@@ -1227,21 +1219,63 @@ export default function App() {
                   onClick={() => setActiveTab('charts')}
                   className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
                     activeTab === 'charts'
-                      ? 'bg-blue-500 text-slate-950 shadow-lg shadow-blue-500/20 font-bold'
+                      ? 'bg-indigo-500 text-slate-950 shadow-lg shadow-indigo-500/20 font-bold'
                       : isLight
                         ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
                         : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                   }`}
                 >
                   <BarChart3 className="w-4 h-4 shrink-0" />
-                  <span>Grafik Tren &amp; Analytics</span>
+                  <span>Grafik Tren & Analytics</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('master')}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                    activeTab === 'master'
+                      ? 'bg-rose-500 text-slate-950 shadow-lg shadow-rose-500/20 font-bold'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Database className="w-4 h-4 shrink-0" />
+                  <span>Master Data & Section</span>
+                </button>
+
+                {(currentUser?.role === 'Admin System' || currentUser?.username === 'admin') && (
+                  <button
+                    onClick={() => setIsUserModalOpen(true)}
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                      isLight 
+                        ? 'text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200' 
+                        : 'text-purple-300 bg-purple-950/40 hover:bg-purple-900/60 border-purple-500/30'
+                    }`}
+                  >
+                    <Users className="w-4 h-4 text-purple-500 shrink-0" />
+                    <span>Kelola Pengguna</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setActiveTab('target_management')}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                    activeTab === 'target_management'
+                      ? 'bg-purple-500 text-slate-950 shadow-lg shadow-purple-500/20 font-bold'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Target className="w-4 h-4 shrink-0" />
+                  <span>Target Bulanan</span>
                 </button>
 
                 <button
                   onClick={() => setActiveTab('timeline')}
                   className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
                     activeTab === 'timeline'
-                      ? 'bg-indigo-500 text-slate-950 shadow-lg shadow-indigo-500/20 font-bold'
+                      ? 'bg-blue-500 text-slate-950 shadow-lg shadow-blue-500/20 font-bold'
                       : isLight
                         ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
                         : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -1255,7 +1289,7 @@ export default function App() {
                   onClick={() => setActiveTab('calendar')}
                   className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
                     activeTab === 'calendar'
-                      ? 'bg-purple-500 text-slate-950 shadow-lg shadow-purple-500/20 font-bold'
+                      ? 'bg-orange-500 text-slate-950 shadow-lg shadow-orange-500/20 font-bold'
                       : isLight
                         ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
                         : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -1302,48 +1336,6 @@ export default function App() {
                 </button>
 
                 <button
-                  onClick={() => setActiveTab('master')}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'master'
-                      ? 'bg-rose-500 text-slate-950 shadow-lg shadow-rose-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <Database className="w-4 h-4 shrink-0" />
-                  <span>Master Data & Section</span>
-                </button>
-
-                {(currentUser?.role === 'Admin System' || currentUser?.username === 'admin') && (
-                  <button
-                    onClick={() => setIsUserModalOpen(true)}
-                    className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                      isLight 
-                        ? 'text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200' 
-                        : 'text-purple-300 bg-purple-950/40 hover:bg-purple-900/60 border-purple-500/30'
-                    }`}
-                  >
-                    <Users className="w-4 h-4 text-purple-500 shrink-0" />
-                    <span>Kelola Pengguna</span>
-                  </button>
-                )}
-
-                <button
-                  onClick={() => setActiveTab('target_management')}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'target_management'
-                      ? 'bg-purple-500 text-slate-950 shadow-lg shadow-purple-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <Target className="w-4 h-4 shrink-0" />
-                  <span>Target Bulanan</span>
-                </button>
-
-                <button
                   onClick={() => setActiveTab('inspection')}
                   className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
                     activeTab === 'inspection'
@@ -1355,6 +1347,48 @@ export default function App() {
                 >
                   <ClipboardCheck className="w-4 h-4 shrink-0" />
                   <span>Timeline Inspeksi</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('inspection_monitoring')}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                    activeTab === 'inspection_monitoring'
+                      ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 font-bold'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4 shrink-0" />
+                  <span>Monitoring Hasil Inspeksi</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('row_monitoring')}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                    activeTab === 'row_monitoring'
+                      ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 font-bold'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <TreePine className="w-4 h-4 shrink-0" />
+                  <span>Monitoring Hasil ROW</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('gangguan')}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                    activeTab === 'gangguan'
+                      ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 font-bold'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <ClipboardCheck className="w-4 h-4 shrink-0" />
+                  <span>Gangguan Penyulang</span>
                 </button>
 
                 <button
@@ -1375,413 +1409,219 @@ export default function App() {
                 </button>
 
                 <button
-                  onClick={() => setActiveTab('gangguan')}
+                  onClick={() => setActiveTab('saidi_saifi')}
                   className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'gangguan'
-                      ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 font-bold'
+                    activeTab === 'saidi_saifi'
+                      ? 'bg-blue-500 text-slate-950 shadow-lg shadow-blue-500/20 font-bold'
                       : isLight
                         ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
                         : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                   }`}
                 >
-                  <ClipboardCheck className="w-4 h-4 shrink-0" />
-                  <span>Gangguan Penyulang</span>
+                  <BarChart3 className="w-4 h-4 shrink-0" />
+                  <span>Perhitungan SAIDI & SAIFI</span>
                 </button>
 
-                {currentUser?.role !== 'Manager' && 
-                 currentUser?.role !== 'Koordinator' && 
-                 currentUser?.role !== 'Team Leader' && 
-                 !(currentUser?.role?.toLowerCase() || '').includes('team leader') &&
-                 currentUser?.username?.toLowerCase() !== 'teamleader' && (
-                  <button
-                    onClick={() => handleOpenAddModal(false)}
-                    className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                      isLight
-                        ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'
-                        : 'text-emerald-400 bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/30'
-                    }`}
-                  >
-                    <Plus className="w-4 h-4 stroke-[3] shrink-0" />
-                    <span>Input Realisasi</span>
-                  </button>
-                )}
-
-                {currentUser?.role !== 'Manager' && 
-                 currentUser?.role !== 'Koordinator' && (
-                  <button
-                    onClick={() => setIsInspectionModalOpen(true)}
-                    className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                      isLight
-                        ? 'text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200'
-                        : 'text-cyan-400 bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/30'
-                    }`}
-                  >
-                    <ClipboardCheck className="w-4 h-4 shrink-0" />
-                    <span>Hasil Inspeksi</span>
-                  </button>
-                )}
-
-                {currentUser?.role !== 'Manager' && 
-                 currentUser?.role !== 'Koordinator' && (
-                  <button
-                    onClick={() => setIsGarduMeasurementModalOpen(true)}
-                    className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                      isLight
-                        ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'
-                        : 'text-emerald-400 bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/30'
-                    }`}
-                  >
-                    <Zap className="w-4 h-4 shrink-0" />
-                    <span>Pengukuran Gardu</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Card 3: Kelola & Aksi Data (Tambah data, simpan data, export Excel, export PDF, kelola user) */}
-            <div className={`backdrop-blur-md rounded-2xl border p-4 shadow-xl space-y-3 transition-all duration-300 ${
-              isLight 
-                ? 'bg-white border-slate-200/80 text-slate-800 shadow-slate-100' 
-                : 'bg-slate-900/95 border-slate-800 text-white shadow-xl'
-            }`}>
-              <p className={`text-[10px] font-bold uppercase tracking-wider px-2 ${
-                isLight ? 'text-slate-400' : 'text-slate-500'
-              }`}>
-                Kelola &amp; Aksi Data
-              </p>
-
-              <div className="space-y-2">
-                {currentUser?.role !== 'Manager' && 
-                 currentUser?.role !== 'Koordinator' && 
-                 currentUser?.role !== 'Team Leader' && 
-                 !(currentUser?.role?.toLowerCase() || '').includes('team leader') &&
-                 currentUser?.username?.toLowerCase() !== 'teamleader' ? (
-                  <>
-                    {/* Simpan Data */}
+                {!isReadOnly && (
+                  <div className="pt-2 space-y-2">
                     <button
-                      onClick={handleManualSave}
-                      className="w-full px-3 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2 border border-blue-400/30 cursor-pointer"
-                    >
-                      <Save className="w-4 h-4" />
-                      <span>Simpan Perubahan</span>
-                    </button>
-                  </>
-                ) : (
-                  <div className={`p-3 text-[11px] font-bold rounded-xl border text-center ${
-                    isLight 
-                      ? 'text-sky-800 bg-sky-50 border-sky-200' 
-                      : 'text-sky-300 bg-sky-950/40 border-sky-500/30'
-                  }`}>
-                    Status: Read-Only
-                  </div>
-                )}
-
-                {/* Combined Download Data */}
-                <div className="relative group">
-                  <button
-                    className={`w-full px-3 py-2 text-xs font-bold rounded-xl transition-all border flex items-center justify-center space-x-2 cursor-pointer ${
-                      isLight 
-                        ? 'text-white bg-indigo-600 hover:bg-indigo-500 border-indigo-400/30 shadow-md' 
-                        : 'text-white bg-indigo-600 hover:bg-indigo-500 border-indigo-500/30 shadow-lg shadow-indigo-500/10'
-                    }`}
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Download Data</span>
-                    <ChevronDown className="w-3 h-3 opacity-50" />
-                  </button>
-                  
-                  {/* Dropdown Menu for Download */}
-                  <div className={`absolute bottom-full left-0 w-full mb-1 p-1 rounded-xl border shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 ${
-                    isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'
-                  }`}>
-                    <button
-                      onClick={handleExportCsv}
-                      className={`w-full px-3 py-2 text-left text-[11px] font-semibold rounded-lg flex items-center space-x-2 transition-colors ${
-                        isLight ? 'hover:bg-slate-100 text-slate-700' : 'hover:bg-slate-800 text-slate-200'
+                      onClick={() => handleOpenAddModal(false)}
+                      className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                        isLight
+                          ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'
+                          : 'text-emerald-400 bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/30'
                       }`}
                     >
-                      <FileText className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>Format Excel (CSV)</span>
+                      <Plus className="w-4 h-4 stroke-[3] shrink-0" />
+                      <span>Input Realisasi</span>
                     </button>
+
                     <button
-                      onClick={() => setIsPdfModalOpen(true)}
-                      className={`w-full px-3 py-2 text-left text-[11px] font-semibold rounded-lg flex items-center space-x-2 transition-colors ${
-                        isLight ? 'hover:bg-slate-100 text-slate-700' : 'hover:bg-slate-800 text-slate-200'
+                      onClick={() => setIsInspectionModalOpen(true)}
+                      className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                        isLight
+                          ? 'text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200'
+                          : 'text-cyan-400 bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/30'
                       }`}
                     >
-                      <FileSpreadsheet className="w-3.5 h-3.5 text-rose-500" />
-                      <span>Format PDF (Laporan)</span>
+                      <Plus className="w-4 h-4 stroke-[3] shrink-0" />
+                      <span>Input Inspeksi</span>
                     </button>
                   </div>
-                </div>
+                )}
               </div>
-
-              {/* Reset Sample & Hapus Semua (Small Text Utilities) */}
-              {(currentUser?.role !== 'Manager' && 
-                currentUser?.role !== 'Koordinator' && 
-                currentUser?.role !== 'Team Leader' && 
-                !(currentUser?.role?.toLowerCase() || '').includes('team leader') &&
-                currentUser?.username?.toLowerCase() !== 'teamleader') && (
-                <div className={`pt-2 border-t flex items-center justify-between text-[10px] ${
-                  isLight ? 'border-slate-150' : 'border-slate-800/80'
-                }`}>
-                  <button
-                    onClick={handleResetData}
-                    className={`${isLight ? 'text-slate-500 hover:text-slate-800' : 'text-slate-400 hover:text-white'} transition-colors cursor-pointer`}
-                  >
-                    Reset Sample
-                  </button>
-                  <button
-                    onClick={handleDeleteAllData}
-                    className="text-rose-500 hover:text-rose-600 transition-colors font-semibold cursor-pointer"
-                  >
-                    Hapus Semua
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Sidebar Footer Info */}
-            <div className="px-4 py-2 text-[10px] text-slate-500 text-center">
-              ULP Baguala - zero gangguan pohon • v2.1
             </div>
           </aside>
 
-          {/* RIGHT COLUMN: FILTER DECK & ACTIVE TAB VIEW CONTENT */}
-          <div className="flex-1 space-y-6 min-w-0">
-            {/* Main Tab View Contents */}
-            {activeTab === 'inspection' && (
-              <InspectionView records={filteredRecords} isLight={isLight} />
+          {/* RIGHT COLUMN: MAIN CONTENT AREA */}
+          <div className="flex-1 min-w-0">
+            {activeTab === 'dashboard' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <TopGangguanPenyulangCard 
+                    records={records} 
+                    selectedYear={selectedYear} 
+                    selectedMonth={selectedMonth} 
+                    isLight={isLight} 
+                  />
+                  <TopRowPruningRecommendationCard 
+                    records={records} 
+                    selectedYear={selectedYear} 
+                    selectedMonth={selectedMonth} 
+                    isLight={isLight} 
+                  />
+                </div>
+                <DashboardTargetTable 
+                  records={records} 
+                  penyulangMaster={penyulangMaster} 
+                  selectedYear={selectedYear} 
+                  selectedMonth={selectedMonth} 
+                  isLight={isLight} 
+                />
+              </div>
             )}
 
-            {activeTab === 'gardu' && (
-              <GarduMeasurementView 
+            {activeTab === 'charts' && (
+              <TrendCharts 
                 records={records} 
+                monthlyTargetsMap={monthlyTargetsMap} 
+              />
+            )}
+
+            {activeTab === 'master' && (
+              <MasterDataView 
                 isLight={isLight} 
-                onOpenAddModal={() => setIsGarduMeasurementModalOpen(true)}
+              />
+            )}
+
+            {activeTab === 'target_management' && (
+              <TargetManagementView 
+                isLight={isLight}
+              />
+            )}
+
+            {activeTab === 'timeline' && (
+              <TimelineView
+                records={records}
+              />
+            )}
+
+            {activeTab === 'calendar' && (
+              <CalendarView
+                records={records}
+                onSelectRecord={() => {}}
+              />
+            )}
+
+            {activeTab === 'map' && (
+              <MapView
+                records={records}
+              />
+            )}
+
+            {activeTab === 'table' && (
+              <DataTable
+                records={filteredRecords}
                 onEditRecord={handleOpenEditModal}
                 onDeleteRecord={handleDeleteRecord}
+                isReadOnly={isReadOnly}
+                isLight={isLight}
+              />
+            )}
+
+            {activeTab === 'inspection' && (
+              <InspectionView
+                records={records}
+                isLight={isLight}
+              />
+            )}
+
+            {activeTab === 'inspection_monitoring' && (
+              <InspectionMonitoringView
+                records={records}
+                isLight={isLight}
+              />
+            )}
+
+            {activeTab === 'row_monitoring' && (
+              <RowMonitoringView
+                records={records}
+                isLight={isLight}
+                penyulangList={penyulangMaster}
               />
             )}
 
             {activeTab === 'gangguan' && (
-              <GangguanView 
-                records={filteredRecords} 
-                isLight={isLight} 
-                onSaveRecord={handleSaveRecord} 
-                penyulangList={penyulangMaster}
-                sectionList={sectionMaster}
+              <GangguanView
+                records={records}
+                isLight={isLight}
+                onSaveRecord={handleSaveRecord}
+                isReadOnly={isReadOnly}
               />
             )}
 
-            {activeTab === 'dashboard' && (
-              <div className="space-y-6">
-                {/* Dashboard Target & Realization Table */}
-                <DashboardTargetTable 
-                  records={filteredRecords}
-                  penyulangMaster={penyulangMaster}
-                  selectedYear={selectedYear}
-                  selectedMonth={selectedMonth}
-                  isLight={isLight}
-                  onExportPdf={() => setIsPdfModalOpen(true)}
-                />
-              </div>
+            {activeTab === 'gardu' && (
+              <GarduMeasurementView
+                records={records}
+                isLight={isLight}
+                onEditRecord={handleOpenEditModal}
+                onDeleteRecord={handleDeleteRecord}
+                isReadOnly={isReadOnly}
+              />
             )}
 
-            {activeTab === 'master' && (
-              <MasterDataView isLight={isLight} />
+            {activeTab === 'saidi_saifi' && (
+              <SaidiSaifiView
+                records={records}
+                isLight={isLight}
+                onSaveRecord={handleSaveRecord}
+                onDeleteRecord={handleDeleteRecord}
+                penyulangList={penyulangMaster}
+                isReadOnly={isReadOnly}
+              />
             )}
 
-            {activeTab === 'target_management' && (
-              <TargetManagementView isLight={isLight} />
-            )}
-
-            {activeTab === 'charts' && (
-              <div className="space-y-6">
-                <TrendCharts records={filteredRecords} />
-              </div>
-            )}
-
-            {activeTab === 'timeline' && (
-              <div className="space-y-6">
-                <TimelineView
-                  records={records} // Pass full records so timeline can switch years/months independently if it wants to, or stick to filtered if preferred. 
-                  // Actually, let's pass records and handle local filtering in TimelineView but sync with global filter.
-                  onSelectRecord={handleOpenEditModal}
-                  isLight={isLight}
-                />
-              </div>
-            )}
-
-            {activeTab === 'calendar' && (
-              <div className="space-y-6">
-                <CalendarView
-                  records={filteredRecords}
-                  onSelectRecord={handleOpenEditModal}
-                />
-              </div>
-            )}
-
-            {activeTab === 'table' && (
-              <div className="space-y-4">
-                <div className={`flex flex-col md:flex-row md:items-center md:justify-between backdrop-blur-md p-5 rounded-2xl border shadow-sm gap-4 transition-all duration-300 ${
-                  isLight 
-                    ? 'bg-white/90 border-slate-200 text-slate-800 shadow-slate-50' 
-                    : 'bg-slate-900/90 border-slate-800 text-white'
-                }`}>
-                  <div>
-                    <h3 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Data Tabel Temuan &amp; Realisasi ROW</h3>
-                    <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Daftar lengkap hasil temuan, realisasi KMS &amp; gawang, serta status kendala</p>
-                  </div>
-                  
-                  <div className="flex flex-wrap items-center gap-2">
-                    {/* Export Excel Button */}
-                    <button
-                      onClick={handleExportTableOnlyExcel}
-                      title="Unduh data tabel dalam format Microsoft Excel (.csv)"
-                      className={`px-3 py-1.5 text-xs font-bold rounded-lg shadow-xs transition border flex items-center gap-1.5 cursor-pointer ${
-                        isLight 
-                          ? 'text-slate-700 bg-white hover:bg-slate-50 border-slate-200' 
-                          : 'text-slate-200 bg-slate-800 hover:bg-slate-700 border-slate-700'
-                      }`}
-                    >
-                      <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                      <span>Export Excel (Tabel Saja)</span>
-                    </button>
-
-                    {/* Export PDF Button */}
-                    <button
-                      onClick={handleExportTableOnlyPdf}
-                      title="Unduh laporan data tabel ini dalam format PDF"
-                      className={`px-3 py-1.5 text-xs font-bold rounded-lg shadow-xs transition border flex items-center gap-1.5 cursor-pointer ${
-                        isLight 
-                          ? 'text-slate-700 bg-white hover:bg-slate-50 border-slate-200' 
-                          : 'text-slate-200 bg-slate-800 hover:bg-slate-700 border-slate-700'
-                      }`}
-                    >
-                      <FileText className="w-4 h-4 text-rose-600" />
-                      <span>Export PDF (Tabel Saja)</span>
-                    </button>
-
-                    {!isReadOnly && (
-                      <button
-                        onClick={() => handleOpenAddModal()}
-                        className="px-3 py-1.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow-xs transition border border-emerald-300 flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Plus className="w-4 h-4" />
-                        <span>Tambah Realisasi</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <DataTable
-                  records={filteredRecords}
-                  onEditRecord={handleOpenEditModal}
-                  onDeleteRecord={handleDeleteRecord}
-                  onDeleteAllRecords={isReadOnly ? undefined : handleDeleteAllData}
-                  isReadOnly={isReadOnly}
-                />
-              </div>
-            )}
-
-            {activeTab === 'map' && (
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white/90 backdrop-blur-md p-4 rounded-xl border border-slate-200 shadow-sm gap-3">
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                      <MapIcon className="w-5 h-5 text-teal-600 animate-pulse" />
-                      Peta Sebaran Gangguan &amp; Temuan ROW Pohon
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Visualisasi sebaran koordinat temuan dahan/pohon yang berpotensi menyentuh jaringan 20kV
-                    </p>
-                  </div>
-                  {!isReadOnly && (
-                    <button
-                      onClick={() => handleOpenAddModal(true)}
-                      className="px-3 py-1.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow-xs transition border border-emerald-300 flex items-center justify-center gap-1 shrink-0"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Tambah Temuan Map</span>
-                    </button>
-                  )}
-                </div>
-
-                <MapView
-                  records={filteredRecords}
-                  onSelectRecord={handleOpenEditModal}
-                />
-              </div>
-            )}
           </div>
         </div>
-
       </main>
 
-      {/* Footer */}
-      <footer className="bg-slate-950/90 backdrop-blur-md text-slate-400 border-t border-slate-800/80 text-xs py-4 mt-8">
-        <div className="max-w-7xl mx-auto px-4 text-center sm:flex sm:items-center sm:justify-between">
-          <p>© 2026 Monitoring ROW Pohon Penyulang — Sistem Pemantauan Jaringan Distribusi 20kV</p>
-          <div className="mt-2 sm:mt-0 flex justify-center space-x-4 text-slate-400">
-            <span>KMS: Kilometer Sirkit</span>
-            <span>•</span>
-            <span>Gawang: Span Bebas Dahan</span>
-          </div>
-        </div>
-      </footer>
-
-      {/* Entry Modal */}
+      {/* Modals */}
       <EntryFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveRecord}
         initialData={editingRecord}
-        isReadOnly={isReadOnly}
-        isMapFindingOnly={isMapModeModal}
-        penyulangList={penyulangMaster}
-        sectionList={sectionMaster}
-        allRecords={records}
       />
 
-      {/* Interactive PDF Export Modal */}
       <InspectionFormModal
         isOpen={isInspectionModalOpen}
         onClose={() => setIsInspectionModalOpen(false)}
         onSave={handleSaveRecord}
-        penyulangList={penyulangMaster}
-        sectionList={sectionMaster}
-        isLight={isLight}
       />
 
       <GarduMeasurementFormModal
-        isOpen={isGarduMeasurementModalOpen}
-        onClose={() => setIsGarduMeasurementModalOpen(false)}
+        isOpen={false} // Handled within GarduMeasurementView
+        onClose={() => {}}
         onSave={handleSaveRecord}
-        penyulangList={penyulangMaster}
-        sectionList={sectionMaster}
-        isLight={isLight}
+      />
+
+      <UserManagementModal
+        isOpen={isUserModalOpen}
+        onClose={() => setIsUserModalOpen(false)}
+        currentUser={currentUser}
+        onUserUpdate={handleLoginSuccess}
+      />
+
+      <TargetManagerModal onTargetsUpdated={handleTargetsUpdated}
+        isOpen={false} // Handled within TargetManagementView
+        onClose={() => {}}
       />
 
       <ExportPdfModal
         isOpen={isPdfModalOpen}
         onClose={() => setIsPdfModalOpen(false)}
-        records={records}
+        records={filteredRecords}
         currentUser={currentUser}
-      />
-
-      {/* Admin User Management Modal */}
-      <UserManagementModal
-        isOpen={isUserModalOpen}
-        onClose={() => setIsUserModalOpen(false)}
-        currentUser={currentUser}
-      />
-
-      {/* Target Manager Modal */}
-      <TargetManagerModal
-        isOpen={isTargetModalOpen}
-        onClose={() => setIsTargetModalOpen(false)}
-        onTargetsUpdated={handleTargetsUpdated}
       />
     </div>
   );

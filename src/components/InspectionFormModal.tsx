@@ -246,7 +246,8 @@ export const InspectionFormModal: React.FC<InspectionFormModalProps> = ({
                           isEksekusi: false,
                           perluPadam: false,
                           belumIzin: false,
-                          pohonBesar: false
+                          pohonBesar: false,
+                          namaPohon: ''
                         });
                       }
                     } else if (newCount < newDetails.length) {
@@ -268,6 +269,21 @@ export const InspectionFormModal: React.FC<InspectionFormModalProps> = ({
                 {(formData.treeDetails || []).map((tree, idx) => (
                   <div key={tree.id} className={`p-3 rounded-lg border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/50 border-slate-700/50'} space-y-2`}>
                     <div className="text-[10px] font-bold text-slate-500">Pohon #{idx + 1}</div>
+                    <div>
+                      <label className="block text-[9px] font-semibold text-slate-500 mb-1">Nama / Jenis Pohon</label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: Pohon Mangga, Sengon, Durian"
+                        value={tree.namaPohon || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const newArr = [...(formData.treeDetails || [])];
+                          newArr[idx] = { ...newArr[idx], namaPohon: val };
+                          setFormData({ ...formData, treeDetails: newArr });
+                        }}
+                        className={`w-full px-2 py-1.5 text-xs rounded-md border focus:outline-none focus:ring-1 font-medium ${inputClass}`}
+                      />
+                    </div>
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         type="number"

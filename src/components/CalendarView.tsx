@@ -85,7 +85,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ records, onSelectRec
     const dayRecs = recordsByDate[dateStr] || [];
     if (dayRecs.length === 0) return null;
 
-    const totalSection = dayRecs.length;
+    const totalSection = dayRecs.filter(r => !r.gangguan && !r.kodeGardu && !r.inspectionType).length;
+    const totalInspeksi = dayRecs.filter(r => r.inspectionType).length;
+    const totalGangguan = dayRecs.filter(r => r.gangguan).length;
+    const totalGardu = dayRecs.filter(r => r.kodeGardu && !r.gangguan).length;
+
     const totalKms = dayRecs.reduce((acc, r) => acc + (r.realisasiKms || 0), 0);
     const totalTemuan = dayRecs.reduce((acc, r) => acc + (r.jumlahTemuan || 0), 0);
     const totalRealTemuan = dayRecs.reduce((acc, r) => acc + (r.realisasiTemuan || 0), 0);
@@ -95,6 +99,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ records, onSelectRec
 
     return {
       totalSection,
+      totalInspeksi,
+      totalGangguan,
+      totalGardu,
       totalKms,
       totalTemuan,
       totalRealTemuan,
@@ -231,9 +238,28 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ records, onSelectRec
                   </span>
 
                   {stats && (
-                    <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
-                      {stats.totalSection} Sec
-                    </span>
+                    <div className="flex flex-col items-end gap-0.5">
+                      {stats.totalSection > 0 && (
+                        <span className="text-[9px] font-extrabold px-1 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          {stats.totalSection} ROW
+                        </span>
+                      )}
+                      {stats.totalInspeksi > 0 && (
+                        <span className="text-[9px] font-extrabold px-1 py-0.2 rounded bg-blue-100 text-blue-800 border border-blue-200">
+                          {stats.totalInspeksi} Insp
+                        </span>
+                      )}
+                      {stats.totalGangguan > 0 && (
+                        <span className="text-[9px] font-extrabold px-1 py-0.2 rounded bg-rose-100 text-rose-800 border border-rose-200">
+                          {stats.totalGangguan} Ggn
+                        </span>
+                      )}
+                      {stats.totalGardu > 0 && (
+                        <span className="text-[9px] font-extrabold px-1 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                          {stats.totalGardu} Grd
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
 

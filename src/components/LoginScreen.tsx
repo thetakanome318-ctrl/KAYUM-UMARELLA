@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { TreePine, Lock, User, KeyRound, AlertCircle, Eye, EyeOff, Zap, RefreshCw, ShieldAlert } from 'lucide-react';
+import { HardHat, Lock, User, KeyRound, AlertCircle, Eye, EyeOff, Zap, RefreshCw, ShieldAlert } from 'lucide-react';
 import { getUsersList } from '../utils/userStorage';
 import { UserAccount } from '../types';
 import bgPlnWorker from '../assets/images/pln_tree_trimming_1785589720078.jpg';
 
 interface LoginScreenProps {
-  onLoginSuccess: (user: { username: string; name: string; role: string }) => void;
+  onLoginSuccess: (user: { username: string; name: string; role: string; photo?: string }) => void;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
@@ -120,6 +120,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         username: foundUser.username,
         name: foundUser.name,
         role: foundUser.role,
+        photo: foundUser.photo,
       });
     } else {
       // Fallback for custom entries if password >= 4 chars
@@ -159,7 +160,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         {/* Logo & Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-slate-900/90 border border-emerald-500/40 text-emerald-400 mb-3 shadow-xl shadow-emerald-500/10 backdrop-blur-md">
-            <TreePine className="h-9 w-9" />
+            <HardHat className="h-9 w-9 text-amber-400" />
           </div>
           <div className="flex items-center justify-center space-x-2 mb-1">
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 backdrop-blur-md">
@@ -171,7 +172,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             Perang Padam Baguala
           </h1>
           <p className="text-xs text-slate-300 mt-1 drop-shadow">
-            Sistem Pemantauan Pemangkasan Pohon &amp; Target KMS Petugas PLN Lapangan
+            Sistem Monitoring Gangguan Penyulang, ROW Pohon, Inspeksi dan Pengukuran Gardu
           </p>
         </div>
 
@@ -292,10 +293,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         {/* Footer info with slogan */}
         <div className="text-center mt-6 space-y-2">
           <p className="text-xs font-black tracking-widest text-emerald-400 uppercase animate-pulse">
-            ⚡ Menuju Zero Gangguan Pohon ⚡
+            ⚡ Pantang Pulang Sebelum Terang ⚡
           </p>
           <p className="text-[11px] text-slate-500">
-            Aplikasi Perang Padam Baguala Support by the tukimen — Pemangkasan ROW &amp; Jaringan 20kV PLN
+            Aplikasi Perang Padam Baguala — Sistem Monitoring Gangguan Penyulang, ROW Pohon, Inspeksi dan Pengukuran Gardu 20kV PLN
           </p>
         </div>
       </div>
