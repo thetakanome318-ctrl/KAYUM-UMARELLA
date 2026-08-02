@@ -14,12 +14,14 @@ import {
 } from 'recharts';
 import { ROWRecord } from '../types';
 import { formatBulan } from '../utils/calculations';
+import { MonthlyTargetItem } from '../utils/targetStorage';
 
 interface TrendChartsProps {
   records: ROWRecord[];
+  monthlyTargetsMap?: Record<string, MonthlyTargetItem>;
 }
 
-export const TrendCharts: React.FC<TrendChartsProps> = ({ records }) => {
+export const TrendCharts: React.FC<TrendChartsProps> = ({ records, monthlyTargetsMap }) => {
   // Aggregate data by month for timeline trend chart
   const monthlyTrendData = useMemo(() => {
     const monthMap: Record<string, {
@@ -42,7 +44,7 @@ export const TrendCharts: React.FC<TrendChartsProps> = ({ records }) => {
           label: formatBulan(key),
           totalTemuan: 0,
           realisasiTemuan: 0,
-          targetKms: 0,
+          targetKms: monthlyTargetsMap?.[key]?.targetKms || 0,
           realisasiKms: 0,
           realisasiGawang: 0,
           persentaseTemuan: 0,
@@ -51,7 +53,7 @@ export const TrendCharts: React.FC<TrendChartsProps> = ({ records }) => {
       }
       monthMap[key].totalTemuan += r.jumlahTemuan || 0;
       monthMap[key].realisasiTemuan += r.realisasiTemuan || 0;
-      monthMap[key].targetKms += r.targetKms || 0;
+      // We don't sum r.targetKms anymore as it's global per month
       monthMap[key].realisasiKms += r.realisasiKms || 0;
       monthMap[key].realisasiGawang += r.realisasiGawang || 0;
     });

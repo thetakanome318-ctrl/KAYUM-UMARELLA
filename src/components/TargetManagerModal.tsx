@@ -8,16 +8,16 @@ interface TargetManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onTargetsUpdated: () => void;
-  selectedYear: number | 'ALL';
+  selectedYear?: number | 'ALL';
 }
 
 export const TargetManagerModal: React.FC<TargetManagerModalProps> = ({
   isOpen,
   onClose,
   onTargetsUpdated,
-  selectedYear,
+  selectedYear = 2026,
 }) => {
-  const activeYear = selectedYear === 'ALL' ? 2026 : Number(selectedYear);
+  const activeYear = selectedYear === 'ALL' ? 2026 : Number(selectedYear || 2026);
   const [currentYear, setCurrentYear] = useState<number>(activeYear);
   const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
   const [targetsMap, setTargetsMap] = useState<Record<string, MonthlyTargetItem>>(() => getMonthlyTargetsMap());

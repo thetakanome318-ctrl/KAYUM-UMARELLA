@@ -29,7 +29,7 @@ export function calculateKPIStats(
       // Specific Month Filter
       const selYear = currentFilter.tahun !== 'ALL' ? Number(currentFilter.tahun) : 2026;
       let monthStr = currentFilter.bulan;
-      if (!monthStr.includes('-')) {
+      if (monthStr && !monthStr.includes('-')) {
         monthStr = `${selYear}-${monthStr.padStart(2, '0')}`;
       }
       const t = monthlyTargetsMap[monthStr];
@@ -94,6 +94,30 @@ export function calculateKPIStats(
     return acc + (r.pohonBesar ? 1 : 0);
   }, 0);
 
+  // Calculate Daily Stats for "Today"
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+  const currentMonthKe = today.getMonth() + 1;
+  const currentYear = today.getFullYear();
+  const currentMonthKey = `${currentYear}-${String(currentMonthKe).padStart(2, '0')}`;
+  
+  // Daily Realization
+  const dailyRecords = records.filter(r => r.tanggal === todayStr);
+  const dailyRealisasiKms = dailyRecords.reduce((acc, r) => acc + (r.realisasiKms || 0), 0);
+  
+  // Monthly Realization (current month)
+  const monthlyRecords = records.filter(r => r.tahun === currentYear && r.bulanKe === currentMonthKe);
+  const monthlyRealisasiKms = monthlyRecords.reduce((acc, r) => acc + (r.realisasiKms || 0), 0);
+
+  // Targets
+  const currentMonthTarget = monthlyTargetsMap ? monthlyTargetsMap[currentMonthKey] : null;
+  const targetBulanKms = currentMonthTarget ? currentMonthTarget.targetKms : 0;
+  const workDays = currentMonthTarget?.workDays || 22;
+  const dailyTargetKms = workDays > 0 ? targetBulanKms / workDays : 0;
+  
+  const dailyPersentase = dailyTargetKms > 0 ? (dailyRealisasiKms / dailyTargetKms) * 100 : 0;
+  const monthlyPersentase = targetBulanKms > 0 ? (monthlyRealisasiKms / targetBulanKms) * 100 : 0;
+
   return {
     totalTemuan: computedTargetPohon,
     totalRealisasiTemuan,
@@ -109,6 +133,15 @@ export function calculateKPIStats(
     totalPerluPadam,
     totalPerluIzin,
     totalPohonBesar,
+    daily: {
+      realisasiKms: dailyRealisasiKms,
+      targetKms: dailyTargetKms,
+      persentase: dailyPersentase,
+      tanggal: todayStr,
+      targetBulanKms,
+      persentaseBulan: monthlyPersentase,
+      realisasiBulanKms: monthlyRealisasiKms
+    }
   };
 }
 

@@ -1,8 +1,57 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Global Deny
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // Validation for ROWRecord
+    function isValidROWRecord(data) {
+      return data.keys().hasAll(['id', 'penyulang', 'section']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.penyulang is string && data.penyulang.size() <= 100 &&
+             data.section is string && data.section.size() <= 100 &&
+             (data.get('jumlahTemuan', 0) is number) &&
+             (data.get('realisasiKms', 0) is number);
+    }
+
+    // Records Collection
+    match /records/{recordId} {
+      allow read: if true; 
+      allow write: if isValidROWRecord(incoming()); 
+    }
+
+    // Monthly Targets Collection
+    match /monthlyTargets/{targetId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Penyulang Collection
+    match /penyulang/{penyulangId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Master Section Collection
+    match /masterSection/{sectionId} {
+      allow read: if true;
+      allow write: if true;
     }
   }
 }

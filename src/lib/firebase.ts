@@ -9,8 +9,9 @@ import {
   onSnapshot, 
   writeBatch 
 } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import firebaseConfigData from '../../firebase-applet-config.json';
-import { ROWRecord } from '../types';
+import { ROWRecord, Penyulang, MasterSection } from '../types';
 import { MonthlyTargetItem } from '../utils/targetStorage';
 
 const firebaseConfig = {
@@ -30,8 +31,83 @@ export const db = firebaseConfigData.firestoreDatabaseId
   ? getFirestore(app, firebaseConfigData.firestoreDatabaseId)
   : getFirestore(app);
 
+export const auth = getAuth(app);
+
 const RECORDS_COLLECTION = 'records';
 const TARGETS_COLLECTION = 'monthlyTargets';
+const PENYULANG_COLLECTION = 'penyulang';
+const MASTER_SECTION_COLLECTION = 'masterSection';
+
+// Error Handling helper as per firebase-integration skill
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+/**
+ * Sanitizes data for Firestore by removing undefined values.
+ * Firestore does not support 'undefined' in its document data.
+ */
+function sanitizeData<T>(obj: T): T {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeData(item)) as any;
+  }
+
+  const sanitized: any = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const value = (obj as any)[key];
+      if (value !== undefined) {
+        sanitized[key] = sanitizeData(value);
+      }
+    }
+  }
+  return sanitized as T;
+}
 
 // Real-time listener for records
 export function subscribeRecords(onUpdate: (records: ROWRecord[]) => void) {
@@ -43,7 +119,7 @@ export function subscribeRecords(onUpdate: (records: ROWRecord[]) => void) {
     });
     onUpdate(list);
   }, (error) => {
-    console.error('Error listening to Firestore records:', error);
+    handleFirestoreError(error, OperationType.LIST, RECORDS_COLLECTION);
   });
 }
 
@@ -60,32 +136,113 @@ export function subscribeMonthlyTargets(onUpdate: (targetsMap: Record<string, Mo
     });
     onUpdate(map);
   }, (error) => {
-    console.error('Error listening to Firestore targets:', error);
+    handleFirestoreError(error, OperationType.LIST, TARGETS_COLLECTION);
+  });
+}
+
+// Real-time listener for penyulang
+export function subscribePenyulang(onUpdate: (list: Penyulang[]) => void) {
+  const ref = collection(db, PENYULANG_COLLECTION);
+  return onSnapshot(ref, (snapshot) => {
+    const list: Penyulang[] = [];
+    snapshot.forEach((docSnap) => {
+      list.push(docSnap.data() as Penyulang);
+    });
+    onUpdate(list);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, PENYULANG_COLLECTION);
   });
 }
 
 // Save or Update a single record in Firestore
 export async function saveRecordToCloud(record: ROWRecord): Promise<void> {
+  const path = `${RECORDS_COLLECTION}/${record.id}`;
   try {
     const docRef = doc(db, RECORDS_COLLECTION, record.id);
-    await setDoc(docRef, {
+    const dataToSave = sanitizeData({
       ...record,
       updatedAt: new Date().toISOString()
-    }, { merge: true });
+    });
+    await setDoc(docRef, dataToSave, { merge: true });
   } catch (error) {
-    console.error('Failed to save record to cloud:', error);
-    throw error;
+    handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
 
 // Delete a record in Firestore
 export async function deleteRecordFromCloud(recordId: string): Promise<void> {
+  const path = `${RECORDS_COLLECTION}/${recordId}`;
   try {
     const docRef = doc(db, RECORDS_COLLECTION, recordId);
     await deleteDoc(docRef);
   } catch (error) {
-    console.error('Failed to delete record from cloud:', error);
-    throw error;
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// Save or Update Penyulang
+export async function savePenyulangToCloud(item: Penyulang): Promise<void> {
+  const path = `${PENYULANG_COLLECTION}/${item.id}`;
+  try {
+    const docRef = doc(db, PENYULANG_COLLECTION, item.id);
+    const dataToSave = sanitizeData({
+      ...item,
+      createdAt: item.createdAt || new Date().toISOString()
+    });
+    await setDoc(docRef, dataToSave, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+// Delete Penyulang
+export async function deletePenyulangFromCloud(id: string): Promise<void> {
+  const path = `${PENYULANG_COLLECTION}/${id}`;
+  try {
+    const docRef = doc(db, PENYULANG_COLLECTION, id);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// Real-time listener for master section
+export function subscribeMasterSection(onUpdate: (list: MasterSection[]) => void) {
+  const ref = collection(db, MASTER_SECTION_COLLECTION);
+  return onSnapshot(ref, (snapshot) => {
+    const list: MasterSection[] = [];
+    snapshot.forEach((docSnap) => {
+      list.push(docSnap.data() as MasterSection);
+    });
+    onUpdate(list);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, MASTER_SECTION_COLLECTION);
+  });
+}
+
+// Save or Update Master Section
+export async function saveMasterSectionToCloud(item: MasterSection): Promise<void> {
+  const path = `${MASTER_SECTION_COLLECTION}/${item.id}`;
+  try {
+    const docRef = doc(db, MASTER_SECTION_COLLECTION, item.id);
+    const dataToSave = sanitizeData({
+      ...item,
+      createdAt: item.createdAt || new Date().toISOString()
+    });
+    await setDoc(docRef, dataToSave, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+// Delete Master Section
+export async function deleteMasterSectionFromCloud(id: string): Promise<void> {
+  const path = `${MASTER_SECTION_COLLECTION}/${id}`;
+  try {
+    const docRef = doc(db, MASTER_SECTION_COLLECTION, id);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
 
@@ -95,14 +252,15 @@ export async function syncAllRecordsToCloud(records: ROWRecord[]): Promise<void>
     const batch = writeBatch(db);
     records.forEach((record) => {
       const docRef = doc(db, RECORDS_COLLECTION, record.id);
-      batch.set(docRef, {
+      const dataToSave = sanitizeData({
         ...record,
         updatedAt: new Date().toISOString()
-      }, { merge: true });
+      });
+      batch.set(docRef, dataToSave, { merge: true });
     });
     await batch.commit();
   } catch (error) {
-    console.error('Failed to batch sync records to cloud:', error);
+    handleFirestoreError(error, OperationType.WRITE, RECORDS_COLLECTION);
   }
 }
 
@@ -119,22 +277,22 @@ export async function clearAllCloudRecords(): Promise<void> {
     });
     await batch.commit();
   } catch (error) {
-    console.error('Failed to clear all cloud records:', error);
-    throw error;
+    handleFirestoreError(error, OperationType.DELETE, RECORDS_COLLECTION);
   }
 }
 
 // Save a monthly target item to Cloud
 export async function saveMonthlyTargetToCloud(target: MonthlyTargetItem): Promise<void> {
+  const path = `${TARGETS_COLLECTION}/${target.bulanKey}`;
   try {
     const docRef = doc(db, TARGETS_COLLECTION, target.bulanKey);
-    await setDoc(docRef, {
+    const dataToSave = sanitizeData({
       ...target,
       updatedAt: new Date().toISOString()
-    }, { merge: true });
+    });
+    await setDoc(docRef, dataToSave, { merge: true });
   } catch (error) {
-    console.error('Failed to save monthly target to cloud:', error);
-    throw error;
+    handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
 
@@ -144,13 +302,14 @@ export async function syncAllTargetsToCloud(targetsMap: Record<string, MonthlyTa
     const batch = writeBatch(db);
     Object.values(targetsMap).forEach((target) => {
       const docRef = doc(db, TARGETS_COLLECTION, target.bulanKey);
-      batch.set(docRef, {
+      const dataToSave = sanitizeData({
         ...target,
         updatedAt: new Date().toISOString()
-      }, { merge: true });
+      });
+      batch.set(docRef, dataToSave, { merge: true });
     });
     await batch.commit();
   } catch (error) {
-    console.error('Failed to sync targets to cloud:', error);
+    handleFirestoreError(error, OperationType.WRITE, TARGETS_COLLECTION);
   }
 }

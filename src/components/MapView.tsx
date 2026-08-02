@@ -16,8 +16,10 @@ import {
   Calendar,
   AlertCircle,
   Maximize2,
-  ListFilter
+  ListFilter,
+  Download
 } from 'lucide-react';
+import { exportToKml, exportToKmz } from '../utils/kmlExport';
 
 // Default coordinates in Jakarta for each feeder (Penyulang)
 export const PENYULANG_COORDINATES: Record<string, { lat: number; lng: number }> = {
@@ -77,23 +79,66 @@ export const MapView: React.FC<MapViewProps> = ({ records, onSelectRecord }) => 
   const mapFilteredRecords = records.filter(r => {
     // Apply local search
     const matchesSearch = searchQuery.trim() === '' || 
-      r.section.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (r.section || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (r.penyulang || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (r.catatan || '').toLowerCase().includes(searchQuery.toLowerCase());
 
     // Apply local map filter category
     if (!matchesSearch) return false;
-    if (filterType === 'PADAM') return r.perluPadam === true;
-    if (filterType === 'IZIN') return r.tidakAdaIzin === true;
-    if (filterType === 'BESAR') return r.pohonBesar === true;
+    if (filterType === 'PADAM') return r.perluPadam === true || (r.treeDetails || []).some(t => t.perluPadam);
+    if (filterType === 'IZIN') return r.tidakAdaIzin === true || (r.treeDetails || []).some(t => t.belumIzin);
+    if (filterType === 'BESAR') return r.pohonBesar === true || (r.treeDetails || []).some(t => t.pohonBesar);
     return true;
   });
 
-  // Calculate coordinates for all filtered records
-  const recordsWithCoords = mapFilteredRecords.map(r => ({
-    record: r,
-    coords: getRecordCoordinates(r)
-  }));
+  // Calculate coordinates for all filtered records or their individual trees
+  const mapPoints = mapFilteredRecords.flatMap(r => {
+    const points: any[] = [];
+    
+    if (r.treeDetails && r.treeDetails.length > 0) {
+      r.treeDetails.forEach((tree, idx) => {
+        if (tree.latitude !== '' && tree.longitude !== '') {
+          if (filterType === 'PADAM' && !tree.perluPadam) return;
+          if (filterType === 'IZIN' && !tree.belumIzin) return;
+          if (filterType === 'BESAR' && !tree.pohonBesar) return;
+
+          points.push({
+            id: tree.id,
+            recordId: r.id,
+            record: r,
+            tree: tree,
+            title: `Pohon #${idx + 1} - ${r.section}`,
+            coords: { lat: Number(tree.latitude), lng: Number(tree.longitude) },
+            perluPadam: tree.perluPadam,
+            tidakAdaIzin: tree.belumIzin,
+            pohonBesar: tree.pohonBesar,
+            isEksekusi: tree.isEksekusi,
+          });
+        }
+      });
+    }
+    
+    if (points.length === 0) {
+      if (filterType === 'PADAM' && !r.perluPadam) return [];
+      if (filterType === 'IZIN' && !r.tidakAdaIzin) return [];
+      if (filterType === 'BESAR' && !r.pohonBesar) return [];
+
+      points.push({
+        id: r.id,
+        recordId: r.id,
+        record: r,
+        tree: null,
+        title: r.section,
+        coords: getRecordCoordinates(r),
+        perluPadam: r.perluPadam,
+        tidakAdaIzin: r.tidakAdaIzin,
+        pohonBesar: r.pohonBesar,
+        isEksekusi: r.jumlahTemuan > 0 && r.realisasiTemuan >= r.jumlahTemuan
+      });
+    }
+
+    return points;
+  });
 
   // Initialize Map
   useEffect(() => {
@@ -147,14 +192,16 @@ export const MapView: React.FC<MapViewProps> = ({ records, onSelectRecord }) => 
     markerInstancesRef.current = {};
 
     // Custom Icon Maker
-    const createCustomDivIcon = (record: ROWRecord, isActive: boolean) => {
-      let colorClass = 'bg-emerald-500 text-white ring-emerald-100';
+    const createCustomDivIcon = (point: any, isActive: boolean) => {
+      let colorClass = 'bg-slate-400 text-white ring-slate-200';
       
-      if (record.perluPadam) {
+      if (point.isEksekusi) {
+        colorClass = 'bg-emerald-500 text-white ring-emerald-100';
+      } else if (point.perluPadam) {
         colorClass = 'bg-rose-500 text-white ring-rose-100';
-      } else if (record.tidakAdaIzin) {
+      } else if (point.tidakAdaIzin) {
         colorClass = 'bg-amber-500 text-slate-900 ring-amber-100';
-      } else if (record.pohonBesar) {
+      } else if (point.pohonBesar) {
         colorClass = 'bg-purple-500 text-white ring-purple-100';
       }
 
@@ -162,14 +209,14 @@ export const MapView: React.FC<MapViewProps> = ({ records, onSelectRecord }) => 
         ? 'scale-125 ring-4 ring-emerald-400 border-2 border-white' 
         : 'hover:scale-110';
 
-      const pulsePing = record.perluPadam 
+      const pulsePing = (!point.isEksekusi && point.perluPadam)
         ? '<span class="absolute inset-0 rounded-full bg-rose-400 opacity-65 animate-ping"></span>' 
-        : record.tidakAdaIzin 
+        : (!point.isEksekusi && point.tidakAdaIzin)
           ? '<span class="absolute inset-0 rounded-full bg-amber-400 opacity-45 animate-ping"></span>'
           : '';
 
-      const shortenedPenyulang = record.penyulang 
-        ? record.penyulang.replace('Penyulang ', '') 
+      const shortenedPenyulang = point.record.penyulang 
+        ? point.record.penyulang.replace('Penyulang ', '') 
         : 'Rutin';
 
       return L.divIcon({
@@ -195,41 +242,70 @@ export const MapView: React.FC<MapViewProps> = ({ records, onSelectRecord }) => 
     };
 
     // Add markers
-    recordsWithCoords.forEach(({ record, coords }) => {
+    mapPoints.forEach((point) => {
+      const record = point.record;
       const isSelected = selectedRecord?.id === record.id;
-      const customIcon = createCustomDivIcon(record, isSelected);
+      const customIcon = createCustomDivIcon(point, isSelected);
 
-      const marker = L.marker([coords.lat, coords.lng], { icon: customIcon });
+      const marker = L.marker([point.coords.lat, point.coords.lng], { icon: customIcon });
 
       // Generate HTML details for popup
+      let statusBadges = '';
+      if (point.isEksekusi) statusBadges += '<span class="text-[9px] font-extrabold uppercase bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded">Selesai</span> ';
+      if (point.perluPadam) statusBadges += '<span class="text-[9px] font-extrabold uppercase bg-rose-50 text-rose-800 border border-rose-200 px-1.5 py-0.5 rounded">Perlu Padam</span> ';
+      if (point.tidakAdaIzin) statusBadges += '<span class="text-[9px] font-extrabold uppercase bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded">Belum Izin</span> ';
+      if (point.pohonBesar) statusBadges += '<span class="text-[9px] font-extrabold uppercase bg-purple-50 text-purple-800 border border-purple-200 px-1.5 py-0.5 rounded">Besar</span> ';
+      
+      if (!statusBadges) {
+          statusBadges = '<span class="text-[9px] font-extrabold uppercase bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded">Belum Dieksekusi</span>';
+      }
+
       const popupContent = `
         <div class="p-3 font-sans min-w-[220px] max-w-[260px] text-slate-800">
-          <div class="flex items-center gap-1.5 mb-1">
+          <div class="flex items-center gap-1.5 mb-1 flex-wrap">
             <span class="text-[9px] font-extrabold uppercase bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded">
               ${record.penyulang || 'Penyulang Umum'}
             </span>
-            ${record.perluPadam ? '<span class="text-[9px] font-extrabold uppercase bg-rose-50 text-rose-800 border border-rose-200 px-1.5 py-0.5 rounded">Perlu Padam</span>' : ''}
+            ${record.isMapFinding || point.tree ? '<span class="text-[9px] font-extrabold uppercase bg-teal-50 text-teal-800 border border-teal-200 px-1.5 py-0.5 rounded">Temuan Pohon</span>' : ''}
+            ${statusBadges}
           </div>
-          <h4 class="font-bold text-xs text-slate-900 mb-2 leading-tight">${record.section}</h4>
+          <h4 class="font-bold text-xs text-slate-900 mb-2 leading-tight">${point.title}</h4>
           
-          <div class="grid grid-cols-2 gap-1.5 border-t border-slate-100 pt-2 mb-2 text-[10px]">
-            <div>
-              <span class="text-slate-400 font-medium">Temuan Pohon:</span>
-              <p class="font-bold text-slate-800">${record.jumlahTemuan} Pohon</p>
+          ${record.isMapFinding || point.tree ? `
+            <div class="border-t border-slate-100 pt-2 mb-2 text-[10px] space-y-1">
+              <div>
+                <span class="text-slate-400 font-medium">Nama Pohon:</span>
+                <p class="font-bold text-slate-800">${point.tree?.namaPohon || point.tree?.keterangan || record.namaPohon || '-'}</p>
+              </div>
+              <div>
+                <span class="text-slate-400 font-medium">Lokasi:</span>
+                <p class="font-bold text-slate-800">${record.lokasi || record.section || '-'}</p>
+              </div>
+              <div>
+                <span class="text-slate-400 font-medium">Koordinat:</span>
+                <p class="font-mono text-slate-600">${point.coords.lat.toFixed(5)}, ${point.coords.lng.toFixed(5)}</p>
+              </div>
             </div>
-            <div>
-              <span class="text-slate-400 font-medium">Selesai Pangkas:</span>
-              <p class="font-bold text-emerald-600">${record.realisasiTemuan} / ${record.jumlahTemuan} (${record.jumlahTemuan > 0 ? Math.round((record.realisasiTemuan/record.jumlahTemuan)*100) : 0}%)</p>
+          ` : `
+            <div class="grid grid-cols-2 gap-1.5 border-t border-slate-100 pt-2 mb-2 text-[10px]">
+              <div>
+                <span class="text-slate-400 font-medium">Temuan Pohon:</span>
+                <p class="font-bold text-slate-800">${record.jumlahTemuan} Pohon</p>
+              </div>
+              <div>
+                <span class="text-slate-400 font-medium">Selesai Pangkas:</span>
+                <p class="font-bold text-emerald-600">${record.realisasiTemuan} / ${record.jumlahTemuan} (${record.jumlahTemuan > 0 ? Math.round((record.realisasiTemuan/record.jumlahTemuan)*100) : 0}%)</p>
+              </div>
+              <div>
+                <span class="text-slate-400 font-medium">Realisasi KMS:</span>
+                <p class="font-bold text-slate-800">${record.realisasiKms} KMS</p>
+              </div>
+              <div>
+                <span class="text-slate-400 font-medium">Gawang Selesai:</span>
+                <p class="font-bold text-slate-800">${record.realisasiGawang} Span</p>
+              </div>
             </div>
-            <div>
-              <span class="text-slate-400 font-medium">Realisasi KMS:</span>
-              <p class="font-bold text-slate-800">${record.realisasiKms} KMS</p>
-            </div>
-            <div>
-              <span class="text-slate-400 font-medium">Gawang Selesai:</span>
-              <p class="font-bold text-slate-800">${record.realisasiGawang} Span</p>
-            </div>
-          </div>
+          `}
 
           ${record.catatan ? `
             <div class="bg-slate-50 border border-slate-200 p-1.5 rounded text-[10px] text-slate-600 leading-relaxed italic mb-2">
@@ -249,25 +325,36 @@ export const MapView: React.FC<MapViewProps> = ({ records, onSelectRecord }) => 
       });
 
       marker.addTo(markersLayer);
-      markerInstancesRef.current[record.id] = marker;
+      markerInstancesRef.current[point.id] = marker;
     });
 
     // Auto-fit bounds if we have markers to display
-    if (recordsWithCoords.length > 0 && !selectedRecord) {
-      const bounds = L.latLngBounds(recordsWithCoords.map(item => [item.coords.lat, item.coords.lng]));
+    if (mapPoints.length > 0 && !selectedRecord) {
+      const bounds = L.latLngBounds(mapPoints.map(item => [item.coords.lat, item.coords.lng]));
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
     }
-  }, [mapFilteredRecords, selectedRecord, filterType]);
+  }, [mapPoints, selectedRecord, filterType]);
 
   const handleSelectRecordFromSidebar = (item: ROWRecord) => {
     setSelectedRecord(item);
-    const coords = getRecordCoordinates(item);
+    
+    let coords = getRecordCoordinates(item);
+    let markerIdToOpen = item.id;
+
+    if (item.treeDetails && item.treeDetails.length > 0) {
+      const firstValidTree = item.treeDetails.find(t => t.latitude !== '' && t.longitude !== '');
+      if (firstValidTree) {
+        coords = { lat: Number(firstValidTree.latitude), lng: Number(firstValidTree.longitude) };
+        markerIdToOpen = firstValidTree.id;
+      }
+    }
+
     const map = leafletMapRef.current;
     
     if (map) {
       map.setView([coords.lat, coords.lng], 16);
       
-      const marker = markerInstancesRef.current[item.id];
+      const marker = markerInstancesRef.current[markerIdToOpen];
       if (marker) {
         setTimeout(() => {
           marker.openPopup();
@@ -287,9 +374,9 @@ export const MapView: React.FC<MapViewProps> = ({ records, onSelectRecord }) => 
 
   const handleResetMapZoom = () => {
     const map = leafletMapRef.current;
-    if (map && recordsWithCoords.length > 0) {
+    if (map && mapPoints.length > 0) {
       setSelectedRecord(null);
-      const bounds = L.latLngBounds(recordsWithCoords.map(item => [item.coords.lat, item.coords.lng]));
+      const bounds = L.latLngBounds(mapPoints.map(item => [item.coords.lat, item.coords.lng]));
       map.fitBounds(bounds, { padding: [50, 50] });
     } else if (map) {
       map.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 12);
@@ -314,6 +401,26 @@ export const MapView: React.FC<MapViewProps> = ({ records, onSelectRecord }) => 
             </span>
           </div>
           
+          {/* Export Buttons KML / KMZ */}
+          <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+            <button
+              onClick={() => exportToKml(mapFilteredRecords)}
+              className="px-2 py-1.5 text-[10px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
+              title="Export KML (Google Earth / GIS)"
+            >
+              <Download className="w-3 h-3 text-emerald-600" />
+              <span>Export .KML</span>
+            </button>
+            <button
+              onClick={() => exportToKmz(mapFilteredRecords)}
+              className="px-2 py-1.5 text-[10px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
+              title="Export KMZ (Compressed KML)"
+            >
+              <Download className="w-3 h-3 text-indigo-600" />
+              <span>Export .KMZ</span>
+            </button>
+          </div>
+
           {/* Quick Search */}
           <div className="relative">
             <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
@@ -421,23 +528,30 @@ export const MapView: React.FC<MapViewProps> = ({ records, onSelectRecord }) => 
                       : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200'
                   }`}
                 >
-                  <div className="flex items-center justify-between w-full mb-1">
+                  <div className="flex items-center justify-between w-full mb-1 font-sans">
                     <span className={`text-[8px] font-extrabold uppercase border px-1.5 py-0.5 rounded ${
                       isSelected ? 'bg-slate-800 text-emerald-300 border-slate-700' : badgeColor
                     }`}>
                       {item.penyulang || 'Penyulang'}
                     </span>
                     <span className={`text-[9px] font-bold ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
-                      {completion}% Pangkas
+                      {item.isMapFinding ? 'Temuan Map' : `${completion}% Pangkas`}
                     </span>
                   </div>
                   <h4 className={`font-bold text-[11px] mb-1 truncate w-full ${isSelected ? 'text-white' : 'text-slate-900'}`}>
                     {item.section}
                   </h4>
-                  <div className="flex items-center justify-between w-full text-[10px] text-slate-400">
-                    <span>{item.jumlahTemuan} pohon temuan</span>
-                    <span className="font-semibold text-emerald-500">{item.realisasiKms} KMS</span>
-                  </div>
+                  {item.isMapFinding ? (
+                    <div className="flex flex-col text-[10px] space-y-0.5 leading-tight opacity-90">
+                      <p className="truncate"><span className={`${isSelected ? 'text-slate-300' : 'text-slate-500'} font-semibold`}>Pohon:</span> <span className="font-bold">{item.namaPohon || '-'}</span></p>
+                      <p className="truncate"><span className={`${isSelected ? 'text-slate-300' : 'text-slate-500'} font-semibold`}>Lokasi:</span> <span className="font-medium">{item.lokasi || '-'}</span></p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between w-full text-[10px] text-slate-400">
+                      <span>{item.jumlahTemuan} pohon temuan</span>
+                      <span className="font-semibold text-emerald-500">{item.realisasiKms} KMS</span>
+                    </div>
+                  )}
                 </button>
               );
             })

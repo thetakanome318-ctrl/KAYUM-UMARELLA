@@ -1,234 +1,153 @@
 import React from 'react';
-import { Filter, Calendar, Search, LayoutDashboard, Clock, Table, BarChart3, X, CalendarDays, Zap, FileText, TreePine, Check, AlertCircle, Map } from 'lucide-react';
-import { FilterState, ViewTab } from '../types';
-import { BULAN_SIMPLE_LIST, YEAR_LIST } from '../data/mockData';
+import { FilterState } from '../types';
+import { TreePine, ClipboardCheck, ShieldAlert, Activity, Check } from 'lucide-react';
 
 interface FilterBarProps {
   filter: FilterState;
   onFilterChange: (newFilter: FilterState) => void;
   totalFilteredCount: number;
-  availablePenyulang?: string[];
-  availableYears?: number[];
+  isLight?: boolean;
+  counts?: {
+    ROW: number;
+    INSPEKSI: number;
+    GANGGUAN: number;
+    GARDU: number;
+  };
 }
 
 export const FilterBar: React.FC<FilterBarProps> = ({
   filter,
   onFilterChange,
   totalFilteredCount,
-  availablePenyulang = [],
-  availableYears = YEAR_LIST,
+  isLight = false,
+  counts = { ROW: 0, INSPEKSI: 0, GANGGUAN: 0, GARDU: 0 },
 }) => {
-  const handlePenyulangChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    onFilterChange({ ...filter, penyulang: e.target.value });
-  };
-
-  const handleTahunChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    onFilterChange({ ...filter, tahun: val === 'ALL' ? 'ALL' : Number(val) });
-  };
-
-  const handleBulanChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    onFilterChange({ ...filter, bulan: e.target.value });
-  };
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onFilterChange({ ...filter, search: e.target.value });
-  };
-
-  const clearFilters = () => {
-    onFilterChange({
-      penyulang: 'ALL',
-      bulan: 'ALL',
-      tahun: 'ALL',
-      search: '',
-      kendala: [],
-    });
-  };
-
-  const hasActiveFilters = 
-    filter.penyulang !== 'ALL' || 
-    filter.bulan !== 'ALL' || 
-    filter.tahun !== 'ALL' || 
-    filter.search !== '' || 
-    (filter.kendala && filter.kendala.length > 0);
-
-  const activeKendala = filter.kendala || [];
-
-  const handleToggleKendala = (val: string) => {
-    let next: string[];
-    if (activeKendala.includes(val)) {
-      next = activeKendala.filter((k) => k !== val);
-    } else {
-      next = [...activeKendala, val];
-    }
-    onFilterChange({ ...filter, kendala: next });
-  };
+  const categories = [
+    {
+      id: 'ROW' as const,
+      label: 'ROW',
+      description: 'Pemangkasan & Pengawasan',
+      icon: TreePine,
+      count: counts.ROW,
+      activeBg: isLight 
+        ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-md shadow-emerald-500/10' 
+        : 'bg-emerald-950/40 border-emerald-500 text-emerald-200 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-500/50',
+      inactiveBg: isLight 
+        ? 'bg-slate-50 border-slate-200 text-slate-700 hover:border-emerald-300 hover:bg-emerald-50/50' 
+        : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-800/60',
+      iconBg: 'bg-emerald-500/20 text-emerald-400',
+      badgeBg: 'bg-emerald-500 text-slate-950',
+    },
+    {
+      id: 'INSPEKSI' as const,
+      label: 'Inspeksi',
+      description: 'Inspeksi Tier 1 & Tier 2',
+      icon: ClipboardCheck,
+      count: counts.INSPEKSI,
+      activeBg: isLight 
+        ? 'bg-sky-50 border-sky-500 text-sky-900 shadow-md shadow-sky-500/10' 
+        : 'bg-sky-950/40 border-sky-500 text-sky-200 shadow-lg shadow-sky-500/10 ring-1 ring-sky-500/50',
+      inactiveBg: isLight 
+        ? 'bg-slate-50 border-slate-200 text-slate-700 hover:border-sky-300 hover:bg-sky-50/50' 
+        : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-800/60',
+      iconBg: 'bg-sky-500/20 text-sky-400',
+      badgeBg: 'bg-sky-500 text-slate-950',
+    },
+    {
+      id: 'GANGGUAN' as const,
+      label: 'Gangguan',
+      description: 'Gangguan Penyulang',
+      icon: ShieldAlert,
+      count: counts.GANGGUAN,
+      activeBg: isLight 
+        ? 'bg-rose-50 border-rose-500 text-rose-900 shadow-md shadow-rose-500/10' 
+        : 'bg-rose-950/40 border-rose-500 text-rose-200 shadow-lg shadow-rose-500/10 ring-1 ring-rose-500/50',
+      inactiveBg: isLight 
+        ? 'bg-slate-50 border-slate-200 text-slate-700 hover:border-rose-300 hover:bg-rose-50/50' 
+        : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-800/60',
+      iconBg: 'bg-rose-500/20 text-rose-400',
+      badgeBg: 'bg-rose-500 text-slate-950',
+    },
+    {
+      id: 'GARDU' as const,
+      label: 'Pengukuran Gardu',
+      description: 'Beban & Tegangan Gardu',
+      icon: Activity,
+      count: counts.GARDU,
+      activeBg: isLight 
+        ? 'bg-purple-50 border-purple-500 text-purple-900 shadow-md shadow-purple-500/10' 
+        : 'bg-purple-950/40 border-purple-500 text-purple-200 shadow-lg shadow-purple-500/10 ring-1 ring-purple-500/50',
+      inactiveBg: isLight 
+        ? 'bg-slate-50 border-slate-200 text-slate-700 hover:border-purple-300 hover:bg-purple-50/50' 
+        : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-800/60',
+      iconBg: 'bg-purple-500/20 text-purple-400',
+      badgeBg: 'bg-purple-500 text-slate-950',
+    },
+  ];
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 sm:p-4 space-y-3">
-      {/* Search Bar Top Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-emerald-600" />
-          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-            Filter &amp; Pencarian
-          </h4>
-        </div>
-
-        {/* Search input */}
-        <div className="relative min-w-[220px] max-w-xs w-full sm:w-auto">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Cari section, lokasi..."
-            value={filter.search}
-            onChange={handleSearchChange}
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 placeholder-slate-400"
-          />
-          {filter.search && (
-            <button
-              onClick={() => onFilterChange({ ...filter, search: '' })}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
+    <div className={`backdrop-blur-md rounded-2xl p-4 border transition-all duration-300 ${
+      isLight 
+        ? 'bg-white border-slate-200/80 text-slate-800 shadow-slate-100 shadow-lg' 
+        : 'bg-slate-900/95 border-slate-800 text-white shadow-xl'
+    }`}>
+      <div className="flex items-center justify-between mb-3 px-1">
+        <label className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${
+          isLight ? 'text-slate-500' : 'text-slate-400'
+        }`}>
+          <span>Pilih Tipe Data:</span>
+        </label>
+        <span className="text-xs font-semibold text-slate-500">
+          Menampilkan: <strong className={isLight ? 'text-slate-900 font-bold' : 'text-emerald-400 font-bold'}>{totalFilteredCount}</strong> data
+        </span>
       </div>
 
-      {/* Primary Select Filters Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        {/* Filter Penyulang */}
-        <div className="flex-1 min-w-[170px]">
-          <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1 flex items-center gap-1">
-            <Filter className="w-3 h-3 text-emerald-600" />
-            Penyulang:
-          </label>
-          <select
-            value={filter.penyulang}
-            onChange={handlePenyulangChange}
-            className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 font-medium"
-          >
-            <option value="ALL">Semua Penyulang {availablePenyulang.length > 0 ? `(${availablePenyulang.length})` : ''}</option>
-            {availablePenyulang.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* 4 Columns for Categories */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {categories.map((cat) => {
+          const Icon = cat.icon;
+          const isActive = filter.tipeData === cat.id;
 
-        {/* Filter Tahun */}
-        <div className="w-full sm:w-44">
-          <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1 flex items-center gap-1">
-            <CalendarDays className="w-3 h-3 text-purple-600" />
-            Monitoring Tahun:
-          </label>
-          <select
-            value={filter.tahun}
-            onChange={handleTahunChange}
-            className="w-full px-3 py-1.5 text-xs bg-white border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-purple-900 font-bold"
-          >
-            <option value="ALL">Semua Tahun</option>
-            {availableYears.map((y) => (
-              <option key={y} value={y}>
-                Tahun {y}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Filter Bulan */}
-        <div className="flex-1 min-w-[180px]">
-          <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1 flex items-center gap-1">
-            <Calendar className="w-3 h-3 text-blue-600" />
-            Monitoring Bulan:
-          </label>
-          <select
-            value={filter.bulan}
-            onChange={handleBulanChange}
-            className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 font-medium"
-          >
-            <option value="ALL">Semua Bulan (Januari - Desember)</option>
-            {BULAN_SIMPLE_LIST.map((b) => (
-              <option key={b.value} value={b.value}>
-                {b.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Clear filter button */}
-        {hasActiveFilters && (
-          <div className="sm:self-end">
+          return (
             <button
-              onClick={clearFilters}
-              className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition flex items-center space-x-1"
-            >
-              <X className="w-3.5 h-3.5" />
-              <span>Reset Filter</span>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Multi-select Kategori Kendala */}
-      <div className="pt-3 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-            Filter Kategori Kendala:
-          </span>
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => handleToggleKendala('Perlu Padam')}
-              className={`px-3 py-1 text-xs font-semibold rounded-full border transition flex items-center space-x-1.5 ${
-                activeKendala.includes('Perlu Padam')
-                  ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-sm'
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+              key={cat.id}
+              onClick={() => onFilterChange({ ...filter, tipeData: cat.id })}
+              className={`relative text-left p-3.5 rounded-xl border transition-all duration-200 cursor-pointer flex items-center space-x-3 group ${
+                isActive ? cat.activeBg : cat.inactiveBg
               }`}
             >
-              <Zap className={`w-3.5 h-3.5 ${activeKendala.includes('Perlu Padam') ? 'text-rose-500 fill-rose-500' : 'text-slate-400'}`} />
-              <span>Perlu Padam</span>
-              {activeKendala.includes('Perlu Padam') && <Check className="w-3 h-3 text-rose-600 stroke-[3]" />}
-            </button>
+              <div className={`p-2.5 rounded-xl transition-transform group-hover:scale-105 shrink-0 ${cat.iconBg}`}>
+                <Icon className="w-5 h-5" />
+              </div>
 
-            <button
-              type="button"
-              onClick={() => handleToggleKendala('Izin')}
-              className={`px-3 py-1 text-xs font-semibold rounded-full border transition flex items-center space-x-1.5 ${
-                activeKendala.includes('Izin')
-                  ? 'bg-amber-50 border-amber-300 text-amber-700 shadow-sm'
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
-              }`}
-            >
-              <FileText className={`w-3.5 h-3.5 ${activeKendala.includes('Izin') ? 'text-amber-500' : 'text-slate-400'}`} />
-              <span>Belum Ada Izin</span>
-              {activeKendala.includes('Izin') && <Check className="w-3 h-3 text-amber-600 stroke-[3]" />}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-1">
+                  <h3 className="text-xs font-bold truncate tracking-tight">{cat.label}</h3>
+                  {isActive && (
+                    <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider flex items-center gap-0.5 shrink-0 ${cat.badgeBg}`}>
+                      <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      Aktif
+                    </span>
+                  )}
+                </div>
+                <p className={`text-[10px] truncate mt-0.5 ${
+                  isActive ? (isLight ? 'text-slate-600' : 'text-slate-300') : (isLight ? 'text-slate-400' : 'text-slate-500')
+                }`}>
+                  {cat.description}
+                </p>
+                <div className="mt-1.5 flex items-center">
+                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${
+                    isActive 
+                      ? (isLight ? 'bg-slate-200/80 text-slate-800' : 'bg-white/10 text-white')
+                      : (isLight ? 'bg-slate-200/60 text-slate-600' : 'bg-slate-800/80 text-slate-400')
+                  }`}>
+                    {cat.count} Data
+                  </span>
+                </div>
+              </div>
             </button>
-
-            <button
-              type="button"
-              onClick={() => handleToggleKendala('Pohon Besar')}
-              className={`px-3 py-1 text-xs font-semibold rounded-full border transition flex items-center space-x-1.5 ${
-                activeKendala.includes('Pohon Besar')
-                  ? 'bg-purple-50 border-purple-300 text-purple-700 shadow-sm'
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
-              }`}
-            >
-              <TreePine className={`w-3.5 h-3.5 ${activeKendala.includes('Pohon Besar') ? 'text-purple-500' : 'text-slate-400'}`} />
-              <span>Pohon Besar</span>
-              {activeKendala.includes('Pohon Besar') && <Check className="w-3 h-3 text-purple-600 stroke-[3]" />}
-            </button>
-          </div>
-        </div>
-
-        {activeKendala.length > 0 && (
-          <div className="text-[11px] text-slate-500 italic flex items-center gap-1">
-            <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
-            <span>Menampilkan temuan dengan salah satu kendala terpilih</span>
-          </div>
-        )}
+          );
+        })}
       </div>
     </div>
   );

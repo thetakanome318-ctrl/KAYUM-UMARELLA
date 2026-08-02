@@ -166,7 +166,7 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text('SISTEM PERANG POHON BAGUALA - JARINGAN DISTRIBUSI DISTRIK 20kV PLN', 14, 23);
+    doc.text('SISTEM PERANG PADAM BAGUALA - JARINGAN DISTRIBUSI DISTRICT 20kV PLN', 14, 23);
 
     // Filter Periode Metadata Info
     let periodeStr = 'Semua Periode';
@@ -272,6 +272,179 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
     doc.setTextColor(100, 116, 139);
     doc.text(`Realisasi Gawang: ${previewStats.targetGawang} Span`, 204, 57);
 
+    // --- VISUAL GRAPHICS & ANALYTICS CHARTS (PAGE 1) ---
+    // Aggregation for Chart A (KMS Achievement per Penyulang)
+    const penyulangKmsMap: Record<string, { target: number; real: number }> = {};
+    filteredRecordsForExport.forEach(r => {
+      const p = r.penyulang || 'Rutin/Umum';
+      if (!penyulangKmsMap[p]) {
+        penyulangKmsMap[p] = { target: 0, real: 0 };
+      }
+      penyulangKmsMap[p].target += r.targetKms || 0;
+      penyulangKmsMap[p].real += r.realisasiKms || 0;
+    });
+
+    const chartAPenyulangs = Object.entries(penyulangKmsMap)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.target - a.target)
+      .slice(0, 5); // top 5
+
+    // Aggregation for Chart B (Monthly Tree Trimming Progress)
+    const monthlyTrimmingMap: Record<string, { temuan: number; real: number }> = {};
+    filteredRecordsForExport.forEach(r => {
+      const b = r.bulan || 'Umum';
+      if (!monthlyTrimmingMap[b]) {
+        monthlyTrimmingMap[b] = { temuan: 0, real: 0 };
+      }
+      monthlyTrimmingMap[b].temuan += r.jumlahTemuan || 0;
+      monthlyTrimmingMap[b].real += r.realisasiTemuan || 0;
+    });
+
+    const chartBMonths = Object.entries(monthlyTrimmingMap)
+      .map(([code, data]) => ({ code, name: formatBulan(code), ...data }))
+      .sort((a, b) => a.code.localeCompare(b.code))
+      .slice(-5); // last 5 months
+
+    // RENDER CHART A: TARGET VS REALISASI KMS PER PENYULANG
+    doc.setFillColor(255, 255, 255);
+    doc.rect(14, 70, 131, 122, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(14, 70, 131, 122, 'D');
+
+    // Title Chart A
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(30, 41, 59);
+    doc.text('TARGET VS REALISASI KMS PER PENYULANG', 20, 77);
+
+    // Legend for Chart A
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setFillColor(203, 213, 225); // Target (gray)
+    doc.rect(20, 81, 3.5, 3.5, 'F');
+    doc.setTextColor(100, 116, 139);
+    doc.text('Target KMS', 25, 84);
+
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]); // Realisasi (primary color)
+    doc.rect(55, 81, 3.5, 3.5, 'F');
+    doc.text('Realisasi KMS', 60, 84);
+
+    const maxKms = Math.max(...chartAPenyulangs.map(p => Math.max(p.target, p.real)), 1);
+    const scaleKms = 58 / maxKms; // 58 mm max bar width
+
+    chartAPenyulangs.forEach((item, idx) => {
+      const rowY = 96 + idx * 18;
+      
+      // Label Penyulang
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(15, 23, 42);
+      const cleanName = item.name.length > 22 ? item.name.substring(0, 20) + '..' : item.name;
+      doc.text(cleanName.toUpperCase(), 20, rowY);
+
+      // Bars
+      const targetW = item.target * scaleKms;
+      const realW = item.real * scaleKms;
+
+      // Target bar
+      doc.setFillColor(241, 245, 249);
+      doc.rect(20, rowY + 2, 58, 3, 'F'); // background track
+      doc.setFillColor(203, 213, 225);
+      doc.rect(20, rowY + 2, Math.max(0.5, Math.min(58, targetW)), 3, 'F'); // target filled
+
+      // Realisasi bar
+      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.rect(20, rowY + 6.5, Math.max(0.5, Math.min(58, realW)), 3, 'F');
+
+      // Capaian calculation & Text
+      const pct = item.target > 0 ? (item.real / item.target) * 100 : 0;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Rl: ${formatNumber(item.real, 1)} / Tgt: ${formatNumber(item.target, 1)} KMS`, 82, rowY + 3.5);
+      
+      let pctColor = [239, 68, 68]; // red
+      if (pct >= 100) {
+        pctColor = [16, 185, 129]; // emerald
+      } else if (pct >= 80) {
+        pctColor = [245, 158, 11]; // amber
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(pctColor[0], pctColor[1], pctColor[2]);
+      doc.text(`${pct.toFixed(0)}% Capaian`, 82, rowY + 8);
+    });
+
+    // RENDER CHART B: MONTHLY TREE TRIMMING PROGRESS
+    doc.setFillColor(255, 255, 255);
+    doc.rect(152, 70, 131, 122, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(152, 70, 131, 122, 'D');
+
+    // Title Chart B
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(30, 41, 59);
+    doc.text('PROGRES PANGKAS TEMUAN POHON PER BULAN', 158, 77);
+
+    // Legend for Chart B
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setFillColor(254, 202, 202); // light red for total temuan
+    doc.rect(158, 81, 3.5, 3.5, 'F');
+    doc.setTextColor(100, 116, 139);
+    doc.text('Total Temuan', 163, 84);
+
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]); // Realisasi pangkas
+    doc.rect(200, 81, 3.5, 3.5, 'F');
+    doc.text('Pohon Dipangkas', 205, 84);
+
+    const maxPohon = Math.max(...chartBMonths.map(m => Math.max(m.temuan, m.real)), 1);
+    const scalePohon = 58 / maxPohon; // 58 mm max bar width
+
+    chartBMonths.forEach((item, idx) => {
+      const rowY = 96 + idx * 18;
+
+      // Label Month
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(15, 23, 42);
+      doc.text(item.name.toUpperCase(), 158, rowY);
+
+      // Bars
+      const temuanW = item.temuan * scalePohon;
+      const realW = item.real * scalePohon;
+
+      // Temuan bar
+      doc.setFillColor(254, 242, 242);
+      doc.rect(158, rowY + 2, 58, 3, 'F'); // background track
+      doc.setFillColor(254, 202, 202);
+      doc.rect(158, rowY + 2, Math.max(0.5, Math.min(58, temuanW)), 3, 'F');
+
+      // Realisasi bar
+      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.rect(158, rowY + 6.5, Math.max(0.5, Math.min(58, realW)), 3, 'F');
+
+      // Capaian calculation & Text
+      const pct = item.temuan > 0 ? (item.real / item.temuan) * 100 : 100;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Pangkas: ${item.real} / Tmn: ${item.temuan} Phn`, 220, rowY + 3.5);
+
+      let pctColor = [239, 68, 68]; // red
+      if (pct >= 100) {
+        pctColor = [16, 185, 129]; // emerald
+      } else if (pct >= 80) {
+        pctColor = [245, 158, 11]; // amber
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(pctColor[0], pctColor[1], pctColor[2]);
+      doc.text(`${pct.toFixed(0)}% Tuntas`, 220, rowY + 8);
+    });
+
+    // --- TRANSITION TO PAGE 2 FOR THE DETAILED TABLE ---
+    doc.addPage();
+
     // --- TABULAR DATA SECTION ---
     // Formatting data rows for autoTable
     const tableHeaders = [
@@ -320,7 +493,7 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
     });
 
     autoTable(doc, {
-      startY: 68,
+      startY: 18,
       head: [tableHeaders],
       body: tableRows,
       theme: 'striped',
@@ -369,7 +542,24 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
           }
         }
       },
-      margin: { left: 14, right: 14, top: 40, bottom: 25 }
+      margin: { left: 14, right: 14, top: 20, bottom: 25 },
+      didDrawPage: (data) => {
+        // Render compact page header on subsequent pages of the document
+        const totalDocPages = doc.getNumberOfPages();
+        if (totalDocPages > 1) {
+          doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+          doc.rect(0, 0, 297, 5, 'F');
+          
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(71, 85, 105);
+          doc.text('LAMPIRAN DATA RINCIAN MONITORING ROW POHON - SISTEM PERANG PADAM BAGUALA', 14, 11);
+          
+          doc.setDrawColor(226, 232, 240);
+          doc.setLineWidth(0.3);
+          doc.line(14, 14, 283, 14);
+        }
+      }
     });
 
     // Signatures and approval footer on the last page
@@ -425,10 +615,10 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
       doc.setFontSize(7.5);
       doc.setTextColor(148, 163, 184);
       doc.text(`Halaman ${i} dari ${pageCount}`, 268, 204);
-      doc.text('Sistem Perang Pohon Baguala PLN — Laporan Resmi ini diterbitkan secara elektronik & sah', 14, 204);
+      doc.text('Sistem Perang Padam Baguala PLN — Laporan Resmi ini diterbitkan secara elektronik & sah', 14, 204);
     }
 
-    doc.save(`Laporan_Perang_Pohon_PDF_${periodeStr.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+    doc.save(`Laporan_Perang_Padam_PDF_${periodeStr.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
   };
 
   return (

@@ -293,7 +293,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
             </div>
 
             <div className="divide-y divide-slate-800/80">
-              {users.map((u) => {
+              {users.map((u: UserAccount) => {
                 const isShowingPass = !!showPasswords[u.id];
                 const isCurrent = u.username === currentUser.username;
 

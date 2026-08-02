@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { ROWRecord, FilterState, ViewTab } from './types';
+import { ROWRecord, FilterState, ViewTab, Penyulang, PenyulangTarget, MasterSection } from './types';
 import { INITIAL_RECORDS } from './data/mockData';
 import { calculateKPIStats, formatBulan } from './utils/calculations';
 import { getMonthlyTargetsMap, saveMonthlyTargetsMap, MonthlyTargetItem, DEFAULT_MONTHLY_TARGETS } from './utils/targetStorage';
 import { 
   subscribeRecords, 
   subscribeMonthlyTargets, 
+  subscribePenyulang,
+  subscribeMasterSection,
   saveRecordToCloud, 
   deleteRecordFromCloud, 
   syncAllRecordsToCloud, 
@@ -13,20 +15,26 @@ import {
   clearAllCloudRecords
 } from './lib/firebase';
 import { Header } from './components/Header';
-import { KPICards } from './components/KPICards';
 import { FilterBar } from './components/FilterBar';
 import { TrendCharts } from './components/TrendCharts';
 import { TimelineView } from './components/TimelineView';
 import { DataTable } from './components/DataTable';
 import { EntryFormModal } from './components/EntryFormModal';
+import { InspectionView } from './components/InspectionView';
+import { GangguanView } from './components/GangguanView';
+import { InspectionFormModal } from './components/InspectionFormModal';
+import { GarduMeasurementView } from './components/GarduMeasurementView';
+import { GarduMeasurementFormModal } from './components/GarduMeasurementFormModal';
 import { ExportPdfModal } from './components/ExportPdfModal';
-import { AiAdvisor } from './components/AiAdvisor';
 import { LoginScreen } from './components/LoginScreen';
 import { UserManagementModal } from './components/UserManagementModal';
 import { TargetManagerModal } from './components/TargetManagerModal';
 import { CalendarView } from './components/CalendarView';
 import { MapView } from './components/MapView';
-import { Plus, Clock, FileSpreadsheet, Sparkles, CheckCircle2, Map as MapIcon, LayoutDashboard, BarChart3, Calendar, Table, TreePine, Download, FileText } from 'lucide-react';
+import { MasterDataView } from './components/MasterDataView';
+import { TargetManagementView } from './components/TargetManagementView';
+import { DashboardTargetTable } from './components/DashboardTargetTable';
+import { Plus, Clock, FileSpreadsheet, Sparkles, CheckCircle2, Map as MapIcon, LayoutDashboard, BarChart3, Calendar, Table, TreePine, Download, FileText, LogOut, Save, Users, Database, Target, ChevronDown, ClipboardCheck, Zap } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import bgImage from './assets/images/power_lines_bg_1785580144298.jpg';
@@ -102,9 +110,14 @@ export default function App() {
       }
     });
 
+    const unsubscribePenyulang = subscribePenyulang(setPenyulangMaster);
+    const unsubscribeSection = subscribeMasterSection(setSectionMaster);
+
     return () => {
       unsubscribeRecords();
       unsubscribeTargets();
+      unsubscribePenyulang();
+      unsubscribeSection();
     };
   }, []);
 
@@ -119,29 +132,47 @@ export default function App() {
 
   // Filter State
   const [filter, setFilter] = useState<FilterState>({
-    penyulang: 'ALL',
-    bulan: 'ALL',
-    tahun: 'ALL',
-    search: '',
-    kendala: [],
+    tipeData: 'ROW',
   });
+  const [selectedYear, setSelectedYear] = useState<number | 'ALL'>('ALL');
+  const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
+
+  // Theme State
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('app_theme') as 'dark' | 'light') || 'dark';
+  });
+
+  const isLight = theme === 'light';
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('app_theme', nextTheme);
+  };
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<ViewTab>('dashboard');
 
+  // Master Data State
+  const [penyulangMaster, setPenyulangMaster] = useState<Penyulang[]>([]);
+  const [sectionMaster, setSectionMaster] = useState<MasterSection[]>([]);
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isInspectionModalOpen, setIsInspectionModalOpen] = useState(false);
+  const [isGarduMeasurementModalOpen, setIsGarduMeasurementModalOpen] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isTargetModalOpen, setIsTargetModalOpen] = useState(false);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ROWRecord | null>(null);
+  const [isMapModeModal, setIsMapModeModal] = useState(false);
 
   const isReadOnly = useMemo(() => {
     return (
       currentUser?.role === 'Manager' || 
       currentUser?.role === 'Koordinator' || 
       currentUser?.role === 'Team Leader' || 
-      currentUser?.role?.toLowerCase().includes('team leader') ||
+      (currentUser?.role?.toLowerCase() || '').includes('team leader') ||
       currentUser?.username?.toLowerCase() === 'teamleader'
     );
   }, [currentUser]);
@@ -150,7 +181,7 @@ export default function App() {
     setMonthlyTargetsMap(getMonthlyTargetsMap());
   };
 
-  // Unique Penyulang derived from current records
+  // Unique Penyulang derived from current records + master data
   const availablePenyulang = useMemo(() => {
     const list = new Set<string>();
     records.forEach((r) => {
@@ -158,8 +189,13 @@ export default function App() {
         list.add(r.penyulang.trim());
       }
     });
+    penyulangMaster.forEach((p) => {
+      if (p.nama && p.nama.trim() !== '') {
+        list.add(p.nama.trim());
+      }
+    });
     return Array.from(list).sort();
-  }, [records]);
+  }, [records, penyulangMaster]);
 
   // Unique / Available Years derived from current records + defaults
   const availableYears = useMemo(() => {
@@ -173,57 +209,65 @@ export default function App() {
   // Filtered Records Computation
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
-      // Filter Penyulang
-      if (filter.penyulang !== 'ALL' && r.penyulang !== filter.penyulang) {
-        return false;
-      }
-      // Filter Tahun
-      if (filter.tahun !== 'ALL' && Number(r.tahun) !== Number(filter.tahun)) {
-        return false;
-      }
-      // Filter Bulan
-      if (filter.bulan !== 'ALL') {
-        if (filter.bulan.includes('-')) {
-          if (r.bulan !== filter.bulan) return false;
-        } else {
-          const mKe = parseInt(filter.bulan, 10);
-          if (!isNaN(mKe) && r.bulanKe !== mKe) {
-            return false;
-          }
-        }
-      }
-      // Filter Kategori Kendala (Multi-select)
-      if (filter.kendala && filter.kendala.length > 0) {
-        const matchesAny = filter.kendala.some((k) => {
-          if (k === 'Perlu Padam') return r.perluPadam === true;
-          if (k === 'Izin') return r.tidakAdaIzin === true;
-          if (k === 'Pohon Besar') return r.pohonBesar === true;
-          return false;
-        });
-        if (!matchesAny) {
-          return false;
-        }
-      }
-      // Filter Search
-      if (filter.search.trim() !== '') {
-        const query = filter.search.toLowerCase();
-        const matchSection = r.section.toLowerCase().includes(query);
-        const matchPenyulang = (r.penyulang || '').toLowerCase().includes(query);
-        const matchCatatan = (r.catatan || '').toLowerCase().includes(query);
-        const matchTanggal = (r.tanggal || '').toLowerCase().includes(query);
-        const matchTahun = r.tahun ? String(r.tahun).includes(query) : false;
-        if (!matchSection && !matchPenyulang && !matchCatatan && !matchTanggal && !matchTahun) {
-          return false;
-        }
+      // Filter Tipe Data
+      if (filter.tipeData === 'ROW') {
+        if (r.gangguan || r.inspectionType === 'Gardu' || r.inspectionType === 'Tier 1' || r.inspectionType === 'Tier 2') return false;
+      } else if (filter.tipeData === 'INSPEKSI') {
+        if (r.inspectionType !== 'Tier 1' && r.inspectionType !== 'Tier 2') return false;
+      } else if (filter.tipeData === 'GANGGUAN') {
+        if (!r.gangguan) return false;
+      } else if (filter.tipeData === 'GARDU') {
+        if (r.inspectionType !== 'Gardu') return false;
       }
       return true;
     });
-  }, [records, filter]);
+  }, [records, filter.tipeData]);
+
+  const typeCounts = useMemo(() => {
+    let row = 0;
+    let inspeksi = 0;
+    let gangguan = 0;
+    let gardu = 0;
+
+    records.forEach((r) => {
+      if (r.gangguan) {
+        gangguan++;
+      } else if (r.inspectionType === 'Gardu') {
+        gardu++;
+      } else if (r.inspectionType === 'Tier 1' || r.inspectionType === 'Tier 2') {
+        inspeksi++;
+      } else {
+        row++;
+      }
+    });
+
+    return {
+      ROW: row,
+      INSPEKSI: inspeksi,
+      GANGGUAN: gangguan,
+      GARDU: gardu,
+    };
+  }, [records]);
 
   // Calculate KPI Stats for filtered records with manual monthly targets
   const kpiStats = useMemo(() => {
-    return calculateKPIStats(filteredRecords, monthlyTargetsMap, filter);
-  }, [filteredRecords, monthlyTargetsMap, filter]);
+    return calculateKPIStats(filteredRecords, monthlyTargetsMap, { tahun: selectedYear, bulan: selectedMonth });
+  }, [filteredRecords, monthlyTargetsMap, selectedYear, selectedMonth]);
+
+  const handleFilterChange = (newFilter: FilterState) => {
+    setFilter(newFilter);
+    if (newFilter.tipeData === 'GARDU') {
+      setActiveTab('gardu');
+    } else if (newFilter.tipeData === 'INSPEKSI') {
+      setActiveTab('inspection');
+    } else if (newFilter.tipeData === 'GANGGUAN') {
+      setActiveTab('gangguan');
+    } else if (newFilter.tipeData === 'ROW') {
+      if (activeTab === 'gardu' || activeTab === 'inspection' || activeTab === 'gangguan') {
+        setActiveTab('table');
+      }
+    }
+  };
 
   // Save state tracking
   const [lastSaveTime, setLastSaveTime] = useState<string | null>(() => {
@@ -243,13 +287,15 @@ export default function App() {
   };
 
   // Modal Handlers
-  const handleOpenAddModal = () => {
+  const handleOpenAddModal = (isMapFinding = false) => {
     setEditingRecord(null);
+    setIsMapModeModal(isMapFinding);
     setIsModalOpen(true);
   };
 
   const handleOpenEditModal = (record: ROWRecord) => {
     setEditingRecord(record);
+    setIsMapModeModal(!!record.isMapFinding);
     setIsModalOpen(true);
   };
 
@@ -335,6 +381,15 @@ export default function App() {
       return `"${s}"`;
     };
 
+    const generateProgressBar = (pctVal: string | number) => {
+      const pct = typeof pctVal === 'number' ? pctVal : parseFloat(String(pctVal).replace('%', ''));
+      if (isNaN(pct)) return '░░░░░░░░░░';
+      const maxBlocks = 10;
+      const filled = Math.min(maxBlocks, Math.max(0, Math.round((pct / 100) * maxBlocks)));
+      const empty = maxBlocks - filled;
+      return '█'.repeat(filled) + '░'.repeat(empty);
+    };
+
     const csvLines: string[] = [];
 
     // Instruction for Excel to auto-split columns using semicolon
@@ -343,8 +398,7 @@ export default function App() {
     // Header Title Banner
     csvLines.push(`"LAPORAN EXECUTIVE & DASHBOARD MONITORING ROW DAN PANGKAS POHON JARINGAN DISTRIBUSI"`);
     csvLines.push(`"Tanggal Export"${DELIM}"${new Date().toISOString().split('T')[0]}"`);
-    csvLines.push(`"Filter Penyulang"${DELIM}"${filter.penyulang === 'ALL' ? 'Semua Penyulang' : filter.penyulang}"`);
-    csvLines.push(`"Filter Bulan"${DELIM}"${filter.bulan === 'ALL' ? 'Semua Bulan' : formatBulan(filter.bulan)}"`);
+    csvLines.push(`"Tipe Data"${DELIM}"${filter.tipeData}"`);
     csvLines.push(`"Total Record"${DELIM}"${filteredRecords.length} Section"`);
     csvLines.push('');
 
@@ -355,6 +409,7 @@ export default function App() {
       escapeCsv('Nilai Target / Total'),
       escapeCsv('Realisasi Eksekusi'),
       escapeCsv('Persentase Capaian'),
+      escapeCsv('Grafik Progres (In-Cell)'),
       escapeCsv('Status')
     ].join(DELIM));
 
@@ -363,15 +418,18 @@ export default function App() {
       stats.totalTemuan,
       stats.totalRealisasiTemuan,
       escapeCsv(`${stats.persentaseTemuan.toFixed(1)}%`),
+      escapeCsv(generateProgressBar(stats.persentaseTemuan)),
       escapeCsv(stats.persentaseTemuan >= 100 ? 'Selesai 100%' : 'Dalam Proses')
     ].join(DELIM));
 
     const sisaTemuanGlobal = stats.totalTemuan - stats.totalRealisasiTemuan;
+    const sisaPct = stats.totalTemuan > 0 ? (sisaTemuanGlobal / stats.totalTemuan) * 100 : 0;
     csvLines.push([
       escapeCsv('Sisa Temuan Pohon Belum Dieksekusi'),
       stats.totalTemuan,
       sisaTemuanGlobal,
-      escapeCsv(`${stats.totalTemuan > 0 ? ((sisaTemuanGlobal / stats.totalTemuan) * 100).toFixed(1) : 0}%`),
+      escapeCsv(`${sisaPct.toFixed(1)}%`),
+      escapeCsv(generateProgressBar(sisaPct)),
       escapeCsv(sisaTemuanGlobal > 0 ? 'Perlu Tindak Lanjut' : 'Tuntas')
     ].join(DELIM));
 
@@ -380,6 +438,7 @@ export default function App() {
       stats.totalTargetKms,
       stats.totalRealisasiKms,
       escapeCsv(`${stats.persentaseKms.toFixed(1)}%`),
+      escapeCsv(generateProgressBar(stats.persentaseKms)),
       escapeCsv(stats.persentaseKms >= 100 ? 'Target Tercapai' : 'Belum Mencapai Target')
     ].join(DELIM));
 
@@ -387,6 +446,7 @@ export default function App() {
       escapeCsv('Realisasi Pemangkasan Span (Gawang)'),
       '-',
       stats.totalRealisasiGawang,
+      '-',
       '-',
       escapeCsv('Gawang Bebas Dahan')
     ].join(DELIM));
@@ -396,6 +456,7 @@ export default function App() {
       '-',
       stats.totalPerluPadam,
       '-',
+      '-',
       escapeCsv('Prioritas Koordinasi PL')
     ].join(DELIM));
 
@@ -404,6 +465,7 @@ export default function App() {
       '-',
       stats.totalPerluIzin,
       '-',
+      '-',
       escapeCsv('Perlu Sosialisasi Himbauan')
     ].join(DELIM));
 
@@ -411,6 +473,7 @@ export default function App() {
       escapeCsv('Kendala: Pohon Ukuran Besar'),
       '-',
       stats.totalPohonBesar,
+      '-',
       '-',
       escapeCsv('Perlu Tim & Alat Khusus')
     ].join(DELIM));
@@ -444,11 +507,13 @@ export default function App() {
       escapeCsv('Target KMS Bulanan'),
       escapeCsv('Realisasi KMS Bulanan'),
       escapeCsv('Capaian Realisasi KMS (%)'),
+      escapeCsv('Grafik Progres KMS'),
       escapeCsv('Realisasi Gawang Bulanan'),
       escapeCsv('Total Temuan Pohon'),
       escapeCsv('Realisasi Temuan Pohon'),
       escapeCsv('Sisa Temuan Pohon'),
       escapeCsv('Capaian Temuan (%)'),
+      escapeCsv('Grafik Progres Pangkas'),
       escapeCsv('Perlu Padam'),
       escapeCsv('Tidak Ada Izin'),
       escapeCsv('Pohon Besar')
@@ -479,11 +544,13 @@ export default function App() {
         mTargetKms,
         mRealisasiKms,
         escapeCsv(mKmsPct),
+        escapeCsv(generateProgressBar(mKmsPct)),
         mRealisasiGawang,
         mTemuan,
         mRealTemuan,
         mSisaTemuan,
         escapeCsv(mTemuanPct),
+        escapeCsv(generateProgressBar(mTemuanPct)),
         mPadam,
         mIzin,
         mBesar
@@ -500,11 +567,13 @@ export default function App() {
       escapeCsv('Target KMS'),
       escapeCsv('Realisasi KMS'),
       escapeCsv('Capaian KMS (%)'),
+      escapeCsv('Grafik Progres KMS'),
       escapeCsv('Realisasi Gawang'),
       escapeCsv('Total Temuan Pohon'),
       escapeCsv('Realisasi Temuan Pohon'),
       escapeCsv('Sisa Temuan Pohon'),
       escapeCsv('Capaian Temuan (%)'),
+      escapeCsv('Grafik Progres Pangkas'),
       escapeCsv('Perlu Padam'),
       escapeCsv('Tidak Ada Izin'),
       escapeCsv('Pohon Besar')
@@ -532,11 +601,13 @@ export default function App() {
         pTargetKms,
         pRealisasiKms,
         escapeCsv(pKmsPct),
+        escapeCsv(generateProgressBar(pKmsPct)),
         pRealisasiGawang,
         pTemuan,
         pRealTemuan,
         pSisaTemuan,
         escapeCsv(pTemuanPct),
+        escapeCsv(generateProgressBar(pTemuanPct)),
         pPadam,
         pIzin,
         pBesar
@@ -563,6 +634,7 @@ export default function App() {
       'Realisasi Luar Temuan',
       'Sisa Temuan Pohon',
       'Capaian Temuan (%)',
+      'Grafik Capaian',
       'Perlu Padam',
       'Tidak Ada Izin',
       'Pohon Besar',
@@ -618,6 +690,7 @@ export default function App() {
           r.realisasiLuarTemuan || 0,
           sisaTemuan,
           escapeCsv(persentase),
+          escapeCsv(generateProgressBar(persentase)),
           perluPadamCount,
           tidakAdaIzinCount,
           pohonBesarCount,
@@ -640,8 +713,11 @@ export default function App() {
         subRealisasiGawang,
         subJumlahTemuan,
         subRealisasiTemuan,
+        0,
+        0,
         subJumlahTemuan - subRealisasiTemuan,
         escapeCsv(subPersentase),
+        escapeCsv(generateProgressBar(subPersentase)),
         subPerluPadam,
         subTidakAdaIzin,
         subPohonBesar,
@@ -676,8 +752,11 @@ export default function App() {
       grandRealisasiGawang,
       grandJumlahTemuan,
       grandRealisasiTemuan,
+      0,
+      0,
       grandJumlahTemuan - grandRealisasiTemuan,
       escapeCsv(grandPersentase),
+      escapeCsv(generateProgressBar(grandPersentase)),
       grandPerluPadam,
       grandTidakAdaIzin,
       grandPohonBesar,
@@ -711,6 +790,15 @@ export default function App() {
       return `"${s}"`;
     };
 
+    const generateProgressBar = (pctVal: string | number) => {
+      const pct = typeof pctVal === 'number' ? pctVal : parseFloat(String(pctVal).replace('%', ''));
+      if (isNaN(pct)) return '░░░░░░░░░░';
+      const maxBlocks = 10;
+      const filled = Math.min(maxBlocks, Math.max(0, Math.round((pct / 100) * maxBlocks)));
+      const empty = maxBlocks - filled;
+      return '█'.repeat(filled) + '░'.repeat(empty);
+    };
+
     const csvLines: string[] = [];
     csvLines.push('sep=;');
 
@@ -736,6 +824,7 @@ export default function App() {
       'Realisasi Luar Temuan',
       'Sisa Temuan Pohon',
       'Capaian Temuan (%)',
+      'Grafik Capaian',
       'Perlu Padam',
       'Tidak Ada Izin',
       'Pohon Besar',
@@ -763,6 +852,7 @@ export default function App() {
         r.realisasiLuarTemuan || 0,
         sisaTemuan,
         persentase,
+        generateProgressBar(persentase),
         r.jumlahPerluPadam ?? (r.perluPadam ? 1 : 0),
         r.jumlahTidakAdaIzin ?? (r.tidakAdaIzin ? 1 : 0),
         r.jumlahPohonBesar ?? (r.pohonBesar ? 1 : 0),
@@ -795,8 +885,11 @@ export default function App() {
       format: 'a4'
     });
 
+    const primaryColor = [6, 78, 59]; // deep emerald/forest green
+
+    // --- PAGE 1: EXECUTIVE ANALYTICS DASHBOARD WITH CHARTS ---
     // Elegant header banner in forest green / emerald
-    doc.setFillColor(6, 78, 59); // deep emerald/forest green
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
     doc.rect(0, 0, 297, 30, 'F');
 
     // Title
@@ -807,7 +900,7 @@ export default function App() {
     
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text('LAPORAN DATA TABEL MONITORING & REALISASI ROW POHON', 14, 17);
+    doc.text('LAPORAN GRAFIK MONITORING & ANALISIS REALISASI ROW POHON', 14, 17);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(52, 211, 153); // emerald light text
     doc.text('Slogan: Menuju Zero Gangguan Pohon', 14, 23);
@@ -819,6 +912,155 @@ export default function App() {
     doc.text(`Dicetak Oleh: ${currentUser?.name || currentUser?.username || 'Sistem'}`, 210, 11);
     doc.text(`Waktu Cetak: ${new Date().toLocaleDateString('id-ID')} ${new Date().toLocaleTimeString('id-ID')}`, 210, 17);
     doc.text(`Jumlah Baris: ${filteredRecords.length} records (Filtered)`, 210, 23);
+
+    // Aggregations for Chart A & B
+    const penyulangKmsMap: Record<string, { target: number; real: number }> = {};
+    filteredRecords.forEach(r => {
+      const p = r.penyulang || 'Rutin/Umum';
+      if (!penyulangKmsMap[p]) {
+        penyulangKmsMap[p] = { target: 0, real: 0 };
+      }
+      penyulangKmsMap[p].target += r.targetKms || 0;
+      penyulangKmsMap[p].real += r.realisasiKms || 0;
+    });
+
+    const chartAPenyulangs = Object.entries(penyulangKmsMap)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.target - a.target)
+      .slice(0, 5);
+
+    const monthlyTrimmingMap: Record<string, { temuan: number; real: number }> = {};
+    filteredRecords.forEach(r => {
+      const b = r.bulan || 'Umum';
+      if (!monthlyTrimmingMap[b]) {
+        monthlyTrimmingMap[b] = { temuan: 0, real: 0 };
+      }
+      monthlyTrimmingMap[b].temuan += r.jumlahTemuan || 0;
+      monthlyTrimmingMap[b].real += r.realisasiTemuan || 0;
+    });
+
+    const chartBMonths = Object.entries(monthlyTrimmingMap)
+      .map(([code, data]) => ({ code, name: formatBulan(code), ...data }))
+      .sort((a, b) => a.code.localeCompare(b.code))
+      .slice(-5);
+
+    // RENDER CHART A
+    doc.setFillColor(255, 255, 255);
+    doc.rect(14, 40, 131, 152, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(14, 40, 131, 152, 'D');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(30, 41, 59);
+    doc.text('TARGET VS REALISASI KMS PER PENYULANG', 20, 48);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setFillColor(203, 213, 225);
+    doc.rect(20, 52, 3.5, 3.5, 'F');
+    doc.setTextColor(100, 116, 139);
+    doc.text('Target KMS', 25, 55);
+
+    doc.setFillColor(16, 185, 129);
+    doc.rect(55, 52, 3.5, 3.5, 'F');
+    doc.text('Realisasi KMS', 60, 55);
+
+    const maxKms = Math.max(...chartAPenyulangs.map(p => Math.max(p.target, p.real)), 1);
+    const scaleKms = 58 / maxKms;
+
+    chartAPenyulangs.forEach((item, idx) => {
+      const rowY = 68 + idx * 22;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(15, 23, 42);
+      const cleanName = item.name.length > 22 ? item.name.substring(0, 20) + '..' : item.name;
+      doc.text(cleanName.toUpperCase(), 20, rowY);
+
+      const targetW = item.target * scaleKms;
+      const realW = item.real * scaleKms;
+
+      doc.setFillColor(241, 245, 249);
+      doc.rect(20, rowY + 2, 58, 3, 'F');
+      doc.setFillColor(203, 213, 225);
+      doc.rect(20, rowY + 2, Math.max(0.5, Math.min(58, targetW)), 3, 'F');
+
+      doc.setFillColor(16, 185, 129);
+      doc.rect(20, rowY + 6.5, Math.max(0.5, Math.min(58, realW)), 3, 'F');
+
+      const pct = item.target > 0 ? (item.real / item.target) * 100 : 0;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Rl: ${item.real.toFixed(1)} / Tgt: ${item.target.toFixed(1)} KMS`, 82, rowY + 3.5);
+      
+      let pctColor = [239, 68, 68];
+      if (pct >= 100) pctColor = [16, 185, 129];
+      else if (pct >= 80) pctColor = [245, 158, 11];
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(pctColor[0], pctColor[1], pctColor[2]);
+      doc.text(`${pct.toFixed(0)}% Capaian`, 82, rowY + 8);
+    });
+
+    // RENDER CHART B
+    doc.setFillColor(255, 255, 255);
+    doc.rect(152, 40, 131, 152, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(152, 40, 131, 152, 'D');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(30, 41, 59);
+    doc.text('PROGRES PANGKAS TEMUAN POHON PER BULAN', 158, 48);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setFillColor(254, 202, 202);
+    doc.rect(158, 52, 3.5, 3.5, 'F');
+    doc.setTextColor(100, 116, 139);
+    doc.text('Total Temuan', 163, 55);
+
+    doc.setFillColor(16, 185, 129);
+    doc.rect(200, 52, 3.5, 3.5, 'F');
+    doc.text('Pohon Dipangkas', 205, 55);
+
+    const maxPohon = Math.max(...chartBMonths.map(m => Math.max(m.temuan, m.real)), 1);
+    const scalePohon = 58 / maxPohon;
+
+    chartBMonths.forEach((item, idx) => {
+      const rowY = 68 + idx * 22;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(15, 23, 42);
+      doc.text(item.name.toUpperCase(), 158, rowY);
+
+      const temuanW = item.temuan * scalePohon;
+      const realW = item.real * scalePohon;
+
+      doc.setFillColor(254, 242, 242);
+      doc.rect(158, rowY + 2, 58, 3, 'F');
+      doc.setFillColor(254, 202, 202);
+      doc.rect(158, rowY + 2, Math.max(0.5, Math.min(58, temuanW)), 3, 'F');
+
+      doc.setFillColor(16, 185, 129);
+      doc.rect(158, rowY + 6.5, Math.max(0.5, Math.min(58, realW)), 3, 'F');
+
+      const pct = item.temuan > 0 ? (item.real / item.temuan) * 100 : 100;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Pangkas: ${item.real} / Tmn: ${item.temuan} Phn`, 220, rowY + 3.5);
+
+      let pctColor = [239, 68, 68];
+      if (pct >= 100) pctColor = [16, 185, 129];
+      else if (pct >= 80) pctColor = [245, 158, 11];
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(pctColor[0], pctColor[1], pctColor[2]);
+      doc.text(`${pct.toFixed(0)}% Tuntas`, 220, rowY + 8);
+    });
+
+    // --- TRANSITION TO PAGE 2 FOR THE DETAILED TABLE ---
+    doc.addPage();
 
     // Let's build table data
     const tableHeaders = [
@@ -847,7 +1089,7 @@ export default function App() {
 
     // AutoTable call
     autoTable(doc, {
-      startY: 35,
+      startY: 18,
       head: tableHeaders,
       body: tableRows,
       theme: 'striped',
@@ -877,8 +1119,24 @@ export default function App() {
         11: { halign: 'right', cellWidth: 12 },
         12: { halign: 'center', cellWidth: 15 }
       },
-      margin: { left: 10, right: 10 },
+      margin: { left: 10, right: 10, top: 20 },
       didDrawPage: (data) => {
+        // Compact page header on subsequent pages
+        const totalDocPages = doc.getNumberOfPages();
+        if (totalDocPages > 1) {
+          doc.setFillColor(6, 78, 59);
+          doc.rect(0, 0, 297, 5, 'F');
+          
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(71, 85, 105);
+          doc.text('LAMPIRAN DATA TABEL MONITORING & REALISASI ROW POHON - PLN ULP BAGUALA', 14, 11);
+          
+          doc.setDrawColor(226, 232, 240);
+          doc.setLineWidth(0.3);
+          doc.line(14, 14, 283, 14);
+        }
+
         // Footer Page numbering
         const str = 'Halaman ' + data.pageNumber;
         doc.setFontSize(8);
@@ -896,9 +1154,13 @@ export default function App() {
 
   return (
     <div 
-      className="min-h-screen text-slate-900 font-sans flex flex-col relative bg-cover bg-center bg-fixed"
+      className={`min-h-screen font-sans flex flex-col relative bg-cover bg-center bg-fixed transition-colors duration-300 ${
+        isLight ? "text-slate-800 bg-slate-50" : "text-white bg-slate-950"
+      }`}
       style={{
-        backgroundImage: `linear-gradient(to bottom, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.90)), url(${bgImage})`,
+        backgroundImage: isLight 
+          ? `linear-gradient(to bottom, rgba(248, 250, 252, 0.92), rgba(241, 245, 249, 0.96)), url(${bgImage})`
+          : `linear-gradient(to bottom, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.90)), url(${bgImage})`,
       }}
     >
       {/* Top Header */}
@@ -914,49 +1176,47 @@ export default function App() {
         currentUser={currentUser}
         onLogout={handleLogout}
         onOpenUserModal={() => setIsUserModalOpen(true)}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         
-        {/* KPI Cards Bar */}
-        <KPICards 
-          stats={kpiStats} 
-          onOpenTargetModal={() => setIsTargetModalOpen(true)} 
+        {/* Horizontal Filter Bar */}
+        <FilterBar 
+          filter={filter} 
+          onFilterChange={handleFilterChange}
+          totalFilteredCount={filteredRecords.length}
+          isLight={isLight}
+          counts={typeCounts}
         />
 
         <div className="flex flex-col lg:flex-row gap-6">
           {/* LEFT COLUMN: NAVIGATION SIDEBAR & COMMAND CENTER */}
-          <aside className="w-full lg:w-72 shrink-0 space-y-4">
-            <div className="bg-slate-900/90 backdrop-blur-md rounded-2xl border border-slate-800 p-5 shadow-xl text-white">
-              {/* Brand Logo & Slogan */}
-              <div className="mb-5 border-b border-slate-800/80 pb-4 text-center">
-                <div className="inline-flex p-3 bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 rounded-xl mb-3 shadow-inner shadow-emerald-500/10">
-                  <TreePine className="w-7 h-7 animate-pulse text-emerald-400" />
-                </div>
-                <h3 className="text-sm font-black tracking-widest text-emerald-400 uppercase">
-                  ⚡ BAGUALA ROW ⚡
-                </h3>
-                <p className="text-xs font-black tracking-widest text-emerald-400 uppercase mt-1.5 animate-pulse">
-                  Menuju Zero Gangguan Pohon
-                </p>
-                <p className="text-[10px] text-slate-400 mt-1 font-semibold uppercase tracking-wider">
-                  PLN UP3 Ambon - ULP Baguala
-                </p>
-              </div>
-
-              {/* Navigation Menu */}
-              <div className="space-y-1.5">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 mb-2">
+          <aside className="w-full lg:w-80 shrink-0 space-y-4">
+            {/* Card 1: Brand & Menu Navigasi (Pushed to the very top) */}
+            <div className={`backdrop-blur-md rounded-2xl border p-4 shadow-xl space-y-4 transition-all duration-300 ${
+              isLight 
+                ? 'bg-white border-slate-200/80 text-slate-800 shadow-slate-100' 
+                : 'bg-slate-900/95 border-slate-800 text-white shadow-xl'
+            }`}>
+              {/* Menu Navigasi */}
+              <div className="space-y-1">
+                <p className={`text-[9px] font-bold uppercase tracking-wider px-2 mb-1.5 ${
+                  isLight ? 'text-slate-400' : 'text-slate-500'
+                }`}>
                   Menu Navigasi
                 </p>
 
                 <button
                   onClick={() => setActiveTab('dashboard')}
-                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all ${
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
                     activeTab === 'dashboard'
                       ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 font-bold'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                   }`}
                 >
                   <LayoutDashboard className="w-4 h-4 shrink-0" />
@@ -965,10 +1225,12 @@ export default function App() {
 
                 <button
                   onClick={() => setActiveTab('charts')}
-                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all ${
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
                     activeTab === 'charts'
                       ? 'bg-blue-500 text-slate-950 shadow-lg shadow-blue-500/20 font-bold'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                   }`}
                 >
                   <BarChart3 className="w-4 h-4 shrink-0" />
@@ -977,10 +1239,12 @@ export default function App() {
 
                 <button
                   onClick={() => setActiveTab('timeline')}
-                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all ${
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
                     activeTab === 'timeline'
                       ? 'bg-indigo-500 text-slate-950 shadow-lg shadow-indigo-500/20 font-bold'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                   }`}
                 >
                   <Clock className="w-4 h-4 shrink-0" />
@@ -989,10 +1253,12 @@ export default function App() {
 
                 <button
                   onClick={() => setActiveTab('calendar')}
-                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all ${
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
                     activeTab === 'calendar'
                       ? 'bg-purple-500 text-slate-950 shadow-lg shadow-purple-500/20 font-bold'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                   }`}
                 >
                   <Calendar className="w-4 h-4 shrink-0" />
@@ -1001,10 +1267,12 @@ export default function App() {
 
                 <button
                   onClick={() => setActiveTab('map')}
-                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all ${
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
                     activeTab === 'map'
                       ? 'bg-teal-500 text-slate-950 shadow-lg shadow-teal-500/20 font-bold'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                   }`}
                 >
                   <MapIcon className="w-4 h-4 shrink-0" />
@@ -1014,77 +1282,318 @@ export default function App() {
 
                 <button
                   onClick={() => setActiveTab('table')}
-                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all ${
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
                     activeTab === 'table'
                       ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 font-bold'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                   }`}
                 >
                   <Table className="w-4 h-4 shrink-0" />
                   <span className="flex-1 text-left">Data Tabel</span>
-                  <span className="bg-slate-800 text-[10px] text-slate-300 font-bold px-2 py-0.5 rounded-md border border-slate-700 shrink-0">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${
+                    isLight 
+                      ? 'bg-slate-100 text-slate-700 border-slate-200' 
+                      : 'bg-slate-800 text-slate-300 border-slate-700'
+                  }`}>
                     {filteredRecords.length}
                   </span>
                 </button>
+
+                <button
+                  onClick={() => setActiveTab('master')}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                    activeTab === 'master'
+                      ? 'bg-rose-500 text-slate-950 shadow-lg shadow-rose-500/20 font-bold'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Database className="w-4 h-4 shrink-0" />
+                  <span>Master Data & Section</span>
+                </button>
+
+                {(currentUser?.role === 'Admin System' || currentUser?.username === 'admin') && (
+                  <button
+                    onClick={() => setIsUserModalOpen(true)}
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                      isLight 
+                        ? 'text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200' 
+                        : 'text-purple-300 bg-purple-950/40 hover:bg-purple-900/60 border-purple-500/30'
+                    }`}
+                  >
+                    <Users className="w-4 h-4 text-purple-500 shrink-0" />
+                    <span>Kelola Pengguna</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setActiveTab('target_management')}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                    activeTab === 'target_management'
+                      ? 'bg-purple-500 text-slate-950 shadow-lg shadow-purple-500/20 font-bold'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Target className="w-4 h-4 shrink-0" />
+                  <span>Target Bulanan</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('inspection')}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                    activeTab === 'inspection'
+                      ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 font-bold'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <ClipboardCheck className="w-4 h-4 shrink-0" />
+                  <span>Timeline Inspeksi</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab('gardu');
+                    setFilter(prev => ({ ...prev, tipeData: 'GARDU' }));
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                    activeTab === 'gardu'
+                      ? 'bg-purple-500 text-slate-950 shadow-lg shadow-purple-500/20 font-bold'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Zap className="w-4 h-4 shrink-0" />
+                  <span>Data Pengukuran Gardu</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('gangguan')}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                    activeTab === 'gangguan'
+                      ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 font-bold'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <ClipboardCheck className="w-4 h-4 shrink-0" />
+                  <span>Gangguan Penyulang</span>
+                </button>
+
+                {currentUser?.role !== 'Manager' && 
+                 currentUser?.role !== 'Koordinator' && 
+                 currentUser?.role !== 'Team Leader' && 
+                 !(currentUser?.role?.toLowerCase() || '').includes('team leader') &&
+                 currentUser?.username?.toLowerCase() !== 'teamleader' && (
+                  <button
+                    onClick={() => handleOpenAddModal(false)}
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                      isLight
+                        ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'
+                        : 'text-emerald-400 bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/30'
+                    }`}
+                  >
+                    <Plus className="w-4 h-4 stroke-[3] shrink-0" />
+                    <span>Input Realisasi</span>
+                  </button>
+                )}
+
+                {currentUser?.role !== 'Manager' && 
+                 currentUser?.role !== 'Koordinator' && (
+                  <button
+                    onClick={() => setIsInspectionModalOpen(true)}
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                      isLight
+                        ? 'text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200'
+                        : 'text-cyan-400 bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/30'
+                    }`}
+                  >
+                    <ClipboardCheck className="w-4 h-4 shrink-0" />
+                    <span>Hasil Inspeksi</span>
+                  </button>
+                )}
+
+                {currentUser?.role !== 'Manager' && 
+                 currentUser?.role !== 'Koordinator' && (
+                  <button
+                    onClick={() => setIsGarduMeasurementModalOpen(true)}
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                      isLight
+                        ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'
+                        : 'text-emerald-400 bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/30'
+                    }`}
+                  >
+                    <Zap className="w-4 h-4 shrink-0" />
+                    <span>Pengukuran Gardu</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Card 3: Kelola & Aksi Data (Tambah data, simpan data, export Excel, export PDF, kelola user) */}
+            <div className={`backdrop-blur-md rounded-2xl border p-4 shadow-xl space-y-3 transition-all duration-300 ${
+              isLight 
+                ? 'bg-white border-slate-200/80 text-slate-800 shadow-slate-100' 
+                : 'bg-slate-900/95 border-slate-800 text-white shadow-xl'
+            }`}>
+              <p className={`text-[10px] font-bold uppercase tracking-wider px-2 ${
+                isLight ? 'text-slate-400' : 'text-slate-500'
+              }`}>
+                Kelola &amp; Aksi Data
+              </p>
+
+              <div className="space-y-2">
+                {currentUser?.role !== 'Manager' && 
+                 currentUser?.role !== 'Koordinator' && 
+                 currentUser?.role !== 'Team Leader' && 
+                 !(currentUser?.role?.toLowerCase() || '').includes('team leader') &&
+                 currentUser?.username?.toLowerCase() !== 'teamleader' ? (
+                  <>
+                    {/* Simpan Data */}
+                    <button
+                      onClick={handleManualSave}
+                      className="w-full px-3 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2 border border-blue-400/30 cursor-pointer"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>Simpan Perubahan</span>
+                    </button>
+                  </>
+                ) : (
+                  <div className={`p-3 text-[11px] font-bold rounded-xl border text-center ${
+                    isLight 
+                      ? 'text-sky-800 bg-sky-50 border-sky-200' 
+                      : 'text-sky-300 bg-sky-950/40 border-sky-500/30'
+                  }`}>
+                    Status: Read-Only
+                  </div>
+                )}
+
+                {/* Combined Download Data */}
+                <div className="relative group">
+                  <button
+                    className={`w-full px-3 py-2 text-xs font-bold rounded-xl transition-all border flex items-center justify-center space-x-2 cursor-pointer ${
+                      isLight 
+                        ? 'text-white bg-indigo-600 hover:bg-indigo-500 border-indigo-400/30 shadow-md' 
+                        : 'text-white bg-indigo-600 hover:bg-indigo-500 border-indigo-500/30 shadow-lg shadow-indigo-500/10'
+                    }`}
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download Data</span>
+                    <ChevronDown className="w-3 h-3 opacity-50" />
+                  </button>
+                  
+                  {/* Dropdown Menu for Download */}
+                  <div className={`absolute bottom-full left-0 w-full mb-1 p-1 rounded-xl border shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 ${
+                    isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'
+                  }`}>
+                    <button
+                      onClick={handleExportCsv}
+                      className={`w-full px-3 py-2 text-left text-[11px] font-semibold rounded-lg flex items-center space-x-2 transition-colors ${
+                        isLight ? 'hover:bg-slate-100 text-slate-700' : 'hover:bg-slate-800 text-slate-200'
+                      }`}
+                    >
+                      <FileText className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Format Excel (CSV)</span>
+                    </button>
+                    <button
+                      onClick={() => setIsPdfModalOpen(true)}
+                      className={`w-full px-3 py-2 text-left text-[11px] font-semibold rounded-lg flex items-center space-x-2 transition-colors ${
+                        isLight ? 'hover:bg-slate-100 text-slate-700' : 'hover:bg-slate-800 text-slate-200'
+                      }`}
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-rose-500" />
+                      <span>Format PDF (Laporan)</span>
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {/* Status block info */}
-              <div className="mt-5 pt-4 border-t border-slate-800/80 space-y-2 text-[11px] text-slate-400 leading-relaxed">
-                <div className="flex items-center space-x-2 text-slate-300">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="font-bold">Sistem Aktif</span>
+              {/* Reset Sample & Hapus Semua (Small Text Utilities) */}
+              {(currentUser?.role !== 'Manager' && 
+                currentUser?.role !== 'Koordinator' && 
+                currentUser?.role !== 'Team Leader' && 
+                !(currentUser?.role?.toLowerCase() || '').includes('team leader') &&
+                currentUser?.username?.toLowerCase() !== 'teamleader') && (
+                <div className={`pt-2 border-t flex items-center justify-between text-[10px] ${
+                  isLight ? 'border-slate-150' : 'border-slate-800/80'
+                }`}>
+                  <button
+                    onClick={handleResetData}
+                    className={`${isLight ? 'text-slate-500 hover:text-slate-800' : 'text-slate-400 hover:text-white'} transition-colors cursor-pointer`}
+                  >
+                    Reset Sample
+                  </button>
+                  <button
+                    onClick={handleDeleteAllData}
+                    className="text-rose-500 hover:text-rose-600 transition-colors font-semibold cursor-pointer"
+                  >
+                    Hapus Semua
+                  </button>
                 </div>
-                <p>Baguala Support by the tukimen — Pemangkasan ROW &amp; Jaringan 20kV PLN.</p>
-              </div>
+              )}
+            </div>
+
+            {/* Sidebar Footer Info */}
+            <div className="px-4 py-2 text-[10px] text-slate-500 text-center">
+              ULP Baguala - zero gangguan pohon • v2.1
             </div>
           </aside>
 
           {/* RIGHT COLUMN: FILTER DECK & ACTIVE TAB VIEW CONTENT */}
           <div className="flex-1 space-y-6 min-w-0">
-            {/* Filter Bar */}
-            <FilterBar
-              filter={filter}
-              onFilterChange={setFilter}
-              totalFilteredCount={filteredRecords.length}
-              availablePenyulang={availablePenyulang}
-              availableYears={availableYears}
-            />
-
             {/* Main Tab View Contents */}
+            {activeTab === 'inspection' && (
+              <InspectionView records={filteredRecords} isLight={isLight} />
+            )}
+
+            {activeTab === 'gardu' && (
+              <GarduMeasurementView 
+                records={records} 
+                isLight={isLight} 
+                onOpenAddModal={() => setIsGarduMeasurementModalOpen(true)}
+                onEditRecord={handleOpenEditModal}
+                onDeleteRecord={handleDeleteRecord}
+              />
+            )}
+
+            {activeTab === 'gangguan' && (
+              <GangguanView 
+                records={filteredRecords} 
+                isLight={isLight} 
+                onSaveRecord={handleSaveRecord} 
+                penyulangList={penyulangMaster}
+                sectionList={sectionMaster}
+              />
+            )}
+
             {activeTab === 'dashboard' && (
               <div className="space-y-6">
-                {/* AI Advisor Panel */}
-                <AiAdvisor records={filteredRecords} stats={kpiStats} />
-
-                {/* Combined Trend Charts Preview */}
-                <TrendCharts records={filteredRecords} />
-
-                {/* Quick Section Preview: Recent Timeline */}
-                <div className="bg-white/95 backdrop-blur-md rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <div>
-                      <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-indigo-600" />
-                        Timeline ROW Pohon Terkini
-                      </h3>
-                      <p className="text-xs text-slate-500">
-                        Progres pemangkasan pohon per penyulang &amp; section berdasarkan periode bulanan
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setActiveTab('timeline')}
-                      className="text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1"
-                    >
-                      Lihat Seluruh Timeline →
-                    </button>
-                  </div>
-
-                  <TimelineView
-                    records={filteredRecords.slice(0, 6)}
-                    onSelectRecord={handleOpenEditModal}
-                  />
-                </div>
+                {/* Dashboard Target & Realization Table */}
+                <DashboardTargetTable 
+                  records={filteredRecords}
+                  penyulangMaster={penyulangMaster}
+                  selectedYear={selectedYear}
+                  selectedMonth={selectedMonth}
+                  isLight={isLight}
+                  onExportPdf={() => setIsPdfModalOpen(true)}
+                />
               </div>
+            )}
+
+            {activeTab === 'master' && (
+              <MasterDataView isLight={isLight} />
+            )}
+
+            {activeTab === 'target_management' && (
+              <TargetManagementView isLight={isLight} />
             )}
 
             {activeTab === 'charts' && (
@@ -1096,8 +1605,10 @@ export default function App() {
             {activeTab === 'timeline' && (
               <div className="space-y-6">
                 <TimelineView
-                  records={filteredRecords}
+                  records={records} // Pass full records so timeline can switch years/months independently if it wants to, or stick to filtered if preferred. 
+                  // Actually, let's pass records and handle local filtering in TimelineView but sync with global filter.
                   onSelectRecord={handleOpenEditModal}
+                  isLight={isLight}
                 />
               </div>
             )}
@@ -1113,10 +1624,14 @@ export default function App() {
 
             {activeTab === 'table' && (
               <div className="space-y-4">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between bg-white/90 backdrop-blur-md p-5 rounded-2xl border border-slate-200 shadow-sm gap-4">
+                <div className={`flex flex-col md:flex-row md:items-center md:justify-between backdrop-blur-md p-5 rounded-2xl border shadow-sm gap-4 transition-all duration-300 ${
+                  isLight 
+                    ? 'bg-white/90 border-slate-200 text-slate-800 shadow-slate-50' 
+                    : 'bg-slate-900/90 border-slate-800 text-white'
+                }`}>
                   <div>
-                    <h3 className="text-base font-bold text-slate-900">Data Tabel Temuan &amp; Realisasi ROW</h3>
-                    <p className="text-xs text-slate-500">Daftar lengkap hasil temuan, realisasi KMS &amp; gawang, serta status kendala</p>
+                    <h3 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Data Tabel Temuan &amp; Realisasi ROW</h3>
+                    <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Daftar lengkap hasil temuan, realisasi KMS &amp; gawang, serta status kendala</p>
                   </div>
                   
                   <div className="flex flex-wrap items-center gap-2">
@@ -1124,7 +1639,11 @@ export default function App() {
                     <button
                       onClick={handleExportTableOnlyExcel}
                       title="Unduh data tabel dalam format Microsoft Excel (.csv)"
-                      className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 rounded-lg shadow-xs transition border border-slate-200 flex items-center gap-1.5 cursor-pointer"
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg shadow-xs transition border flex items-center gap-1.5 cursor-pointer ${
+                        isLight 
+                          ? 'text-slate-700 bg-white hover:bg-slate-50 border-slate-200' 
+                          : 'text-slate-200 bg-slate-800 hover:bg-slate-700 border-slate-700'
+                      }`}
                     >
                       <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
                       <span>Export Excel (Tabel Saja)</span>
@@ -1134,7 +1653,11 @@ export default function App() {
                     <button
                       onClick={handleExportTableOnlyPdf}
                       title="Unduh laporan data tabel ini dalam format PDF"
-                      className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 rounded-lg shadow-xs transition border border-slate-200 flex items-center gap-1.5 cursor-pointer"
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg shadow-xs transition border flex items-center gap-1.5 cursor-pointer ${
+                        isLight 
+                          ? 'text-slate-700 bg-white hover:bg-slate-50 border-slate-200' 
+                          : 'text-slate-200 bg-slate-800 hover:bg-slate-700 border-slate-700'
+                      }`}
                     >
                       <FileText className="w-4 h-4 text-rose-600" />
                       <span>Export PDF (Tabel Saja)</span>
@@ -1142,7 +1665,7 @@ export default function App() {
 
                     {!isReadOnly && (
                       <button
-                        onClick={handleOpenAddModal}
+                        onClick={() => handleOpenAddModal()}
                         className="px-3 py-1.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow-xs transition border border-emerald-300 flex items-center gap-1.5 cursor-pointer"
                       >
                         <Plus className="w-4 h-4" />
@@ -1176,7 +1699,7 @@ export default function App() {
                   </div>
                   {!isReadOnly && (
                     <button
-                      onClick={handleOpenAddModal}
+                      onClick={() => handleOpenAddModal(true)}
                       className="px-3 py-1.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow-xs transition border border-emerald-300 flex items-center justify-center gap-1 shrink-0"
                     >
                       <Plus className="w-4 h-4" />
@@ -1215,9 +1738,31 @@ export default function App() {
         onSave={handleSaveRecord}
         initialData={editingRecord}
         isReadOnly={isReadOnly}
+        isMapFindingOnly={isMapModeModal}
+        penyulangList={penyulangMaster}
+        sectionList={sectionMaster}
+        allRecords={records}
       />
 
       {/* Interactive PDF Export Modal */}
+      <InspectionFormModal
+        isOpen={isInspectionModalOpen}
+        onClose={() => setIsInspectionModalOpen(false)}
+        onSave={handleSaveRecord}
+        penyulangList={penyulangMaster}
+        sectionList={sectionMaster}
+        isLight={isLight}
+      />
+
+      <GarduMeasurementFormModal
+        isOpen={isGarduMeasurementModalOpen}
+        onClose={() => setIsGarduMeasurementModalOpen(false)}
+        onSave={handleSaveRecord}
+        penyulangList={penyulangMaster}
+        sectionList={sectionMaster}
+        isLight={isLight}
+      />
+
       <ExportPdfModal
         isOpen={isPdfModalOpen}
         onClose={() => setIsPdfModalOpen(false)}
@@ -1237,7 +1782,6 @@ export default function App() {
         isOpen={isTargetModalOpen}
         onClose={() => setIsTargetModalOpen(false)}
         onTargetsUpdated={handleTargetsUpdated}
-        selectedYear={filter.tahun}
       />
     </div>
   );

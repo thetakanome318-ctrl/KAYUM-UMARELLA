@@ -11,6 +11,7 @@
         "tahun": { "type": "number" },
         "penyulang": { "type": "string" },
         "section": { "type": "string" },
+        "tanggal": { "type": "string" },
         "targetKms": { "type": "number" },
         "realisasiKms": { "type": "number" },
         "realisasiGawang": { "type": "number" },
@@ -25,6 +26,11 @@
         "jumlahTidakAdaIzin": { "type": "number" },
         "pohonBesar": { "type": "boolean" },
         "jumlahPohonBesar": { "type": "number" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "lokasi": { "type": "string" },
+        "namaPohon": { "type": "string" },
+        "isMapFinding": { "type": "boolean" },
         "updatedAt": { "type": "string" }
       },
       "required": ["id", "section", "penyulang"]
@@ -42,6 +48,19 @@
         "updatedAt": { "type": "string" }
       },
       "required": ["bulanKey"]
+    },
+    "penyulang": {
+      "title": "Penyulang Master Data",
+      "description": "Master list of electrical feeders (penyulang).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nama": { "type": "string" },
+        "kode": { "type": "string" },
+        "panjangJaringan": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "nama"]
     }
   }
 }

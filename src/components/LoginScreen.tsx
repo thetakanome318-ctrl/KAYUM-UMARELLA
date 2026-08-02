@@ -168,7 +168,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             </span>
           </div>
           <h1 className="text-2xl font-extrabold text-slate-100 tracking-tight drop-shadow-md">
-            Perang Pohon Baguala
+            Perang Padam Baguala
           </h1>
           <p className="text-xs text-slate-300 mt-1 drop-shadow">
             Sistem Pemantauan Pemangkasan Pohon &amp; Target KMS Petugas PLN Lapangan
@@ -295,7 +295,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             ⚡ Menuju Zero Gangguan Pohon ⚡
           </p>
           <p className="text-[11px] text-slate-500">
-            Aplikasi Perang Pohon Baguala Support by the tukimen — Pemangkasan ROW &amp; Jaringan 20kV PLN
+            Aplikasi Perang Padam Baguala Support by the tukimen — Pemangkasan ROW &amp; Jaringan 20kV PLN
           </p>
         </div>
       </div>
