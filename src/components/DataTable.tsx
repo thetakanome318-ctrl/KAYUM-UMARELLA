@@ -1,13 +1,14 @@
 import React from 'react';
 import { ROWRecord } from '../types';
 import { formatBulan, formatNumber } from '../utils/calculations';
-import { Edit3, Trash2, PowerOff, ShieldAlert, TreePine, CheckCircle2 } from 'lucide-react';
+import { Edit3, Trash2, PowerOff, ShieldAlert, TreePine, CheckCircle2, Eye } from 'lucide-react';
 
 interface DataTableProps {
   records: ROWRecord[];
   onEditRecord: (record: ROWRecord) => void;
   onDeleteRecord: (id: string) => void;
   onDeleteAllRecords?: () => void;
+  isReadOnly?: boolean;
 }
 
 export const DataTable: React.FC<DataTableProps> = ({
@@ -15,6 +16,7 @@ export const DataTable: React.FC<DataTableProps> = ({
   onEditRecord,
   onDeleteRecord,
   onDeleteAllRecords,
+  isReadOnly = false,
 }) => {
   if (records.length === 0) {
     return (
@@ -179,20 +181,33 @@ export const DataTable: React.FC<DataTableProps> = ({
                   {/* Aksi */}
                   <td className="py-3 px-3 text-center whitespace-nowrap">
                     <div className="flex items-center justify-center space-x-1">
-                      <button
-                        onClick={() => onEditRecord(r)}
-                        title="Edit Record"
-                        className="p-1.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded transition"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => onDeleteRecord(r.id)}
-                        title="Hapus Record"
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {isReadOnly ? (
+                        <button
+                          onClick={() => onEditRecord(r)}
+                          title="Lihat Detail Temuan"
+                          className="px-2 py-1 text-[10px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg transition flex items-center gap-1"
+                        >
+                          <Eye className="w-3 h-3 text-sky-600" />
+                          <span>Detail</span>
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => onEditRecord(r)}
+                            title="Edit Record"
+                            className="p-1.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded transition"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => onDeleteRecord(r.id)}
+                            title="Hapus Record"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

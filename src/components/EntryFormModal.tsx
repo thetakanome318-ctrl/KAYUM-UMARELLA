@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle, AlertCircle, TreePine, ShieldAlert, PowerOff, Sparkles, CalendarDays } from 'lucide-react';
+import { X, CheckCircle, AlertCircle, TreePine, ShieldAlert, PowerOff, Sparkles, CalendarDays, Compass } from 'lucide-react';
 import { ROWRecord } from '../types';
 import { BULAN_SIMPLE_LIST, YEAR_LIST } from '../data/mockData';
 
@@ -8,6 +8,7 @@ interface EntryFormModalProps {
   onClose: () => void;
   onSave: (record: ROWRecord) => void;
   initialData?: ROWRecord | null;
+  isReadOnly?: boolean;
 }
 
 export const EntryFormModal: React.FC<EntryFormModalProps> = ({
@@ -15,6 +16,7 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
   onClose,
   onSave,
   initialData,
+  isReadOnly = false,
 }) => {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayYear = new Date().getFullYear();
@@ -192,6 +194,8 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
       
       catatan: formData.catatan || '',
       tanggalUpdate: todayStr,
+      latitude: formData.latitude !== undefined && !isNaN(formData.latitude) ? Number(formData.latitude) : undefined,
+      longitude: formData.longitude !== undefined && !isNaN(formData.longitude) ? Number(formData.longitude) : undefined,
     };
 
     onSave(recordToSave);
@@ -210,10 +214,10 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-100">
-                {initialData ? 'Edit Data Monitoring ROW' : 'Input Form Temuan & Realisasi ROW'}
+                {isReadOnly ? 'Detail Monitoring ROW (Read-Only)' : initialData ? 'Edit Data Monitoring ROW' : 'Input Form Temuan & Realisasi ROW'}
               </h2>
               <p className="text-xs text-slate-400">
-                Lengkapi kolom mandatori & opsional pemangkasan pohon penyulang
+                {isReadOnly ? 'Melihat detail informasi pangkas pohon & target KMS' : 'Lengkapi kolom mandatori & opsional pemangkasan pohon penyulang'}
               </p>
             </div>
           </div>
@@ -234,8 +238,9 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
             </div>
           )}
 
-          {/* SECTION 1: MANDATORI FIELDS */}
-          <div className="space-y-4">
+          <fieldset disabled={isReadOnly} className="space-y-6">
+            {/* SECTION 1: MANDATORI FIELDS */}
+            <div className="space-y-4">
             <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
               <h3 className="text-xs font-extrabold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5">
                 <CheckCircle className="w-4 h-4 text-emerald-600" />
@@ -528,6 +533,45 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
               </div>
             </div>
 
+            {/* Koordinat Geografis */}
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-2.5">
+              <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <Compass className="w-4 h-4 text-emerald-600" />
+                Koordinat Geografis Lokasi (Opsional)
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    Latitude (Garis Lintang)
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="Contoh: -6.1754"
+                    value={formData.latitude ?? ''}
+                    onChange={(e) => setFormData({ ...formData, latitude: e.target.value !== '' ? parseFloat(e.target.value) : undefined })}
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                    Longitude (Garis Bujur)
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="Contoh: 106.8272"
+                    value={formData.longitude ?? ''}
+                    onChange={(e) => setFormData({ ...formData, longitude: e.target.value !== '' ? parseFloat(e.target.value) : undefined })}
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900"
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-500 leading-tight">
+                *Kosongkan untuk menggunakan koordinat default berdasarkan nama penyulang otomatis.
+              </p>
+            </div>
+
             {/* Catatan / Notes */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -542,23 +586,36 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
               />
             </div>
           </div>
+        </fieldset>
 
-          {/* Form Actions */}
+        {/* Form Actions */}
           <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl shadow transition border border-emerald-300 flex items-center space-x-1.5"
-            >
-              <CheckCircle className="w-4 h-4" />
-              <span>Simpan Data Monitoring</span>
-            </button>
+            {isReadOnly ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2 text-xs font-bold text-slate-950 bg-sky-400 hover:bg-sky-300 rounded-xl shadow transition border border-sky-300 flex items-center justify-center space-x-1.5"
+              >
+                <span>Tutup</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl shadow transition border border-emerald-300 flex items-center space-x-1.5"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Simpan Data Monitoring</span>
+                </button>
+              </>
+            )}
           </div>
         </form>
 

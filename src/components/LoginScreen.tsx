@@ -177,72 +177,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
         {/* Login Card */}
         <div className="bg-slate-900/85 border border-slate-800/90 rounded-2xl p-6 sm:p-8 shadow-2xl backdrop-blur-md">
-          {/* Quick Demo Account Selector */}
-          <div className="mb-4 pb-3 border-b border-slate-800">
-            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-              Pilih Akun Demo Cepat:
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setUsername('admin');
-                  setPassword('admin123');
-                  setUserCaptcha(captchaCode);
-                }}
-                className="px-2 py-1 text-[11px] font-semibold bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 rounded-lg transition"
-              >
-                Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setUsername('manager');
-                  setPassword('manager123');
-                  setUserCaptcha(captchaCode);
-                }}
-                className="px-2 py-1 text-[11px] font-semibold bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 rounded-lg transition"
-                title="Status Monitoring (Read-Only)"
-              >
-                Manager 👁
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setUsername('koordinator');
-                  setPassword('koordinator123');
-                  setUserCaptcha(captchaCode);
-                }}
-                className="px-2 py-1 text-[11px] font-semibold bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border border-teal-500/30 rounded-lg transition"
-                title="Status Monitoring (Read-Only)"
-              >
-                Koordinator 👁
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setUsername('teamleader');
-                  setPassword('teamleader123');
-                  setUserCaptcha(captchaCode);
-                }}
-                className="px-2 py-1 text-[11px] font-semibold bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 rounded-lg transition"
-              >
-                Team Leader
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setUsername('operator');
-                  setPassword('operator123');
-                  setUserCaptcha(captchaCode);
-                }}
-                className="px-2 py-1 text-[11px] font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 rounded-lg transition"
-              >
-                Operator
-              </button>
-            </div>
-          </div>
-
           <form onSubmit={handleLogin} className="space-y-4">
             {error && (
               <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-start space-x-2">
@@ -355,10 +289,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           </form>
         </div>
 
-        {/* Footer info */}
-        <p className="text-[11px] text-center text-slate-500 mt-4">
-          Aplikasi Perang Pohon Baguala Support by the tukimen — Pemangkasan ROW &amp; Jaringan 20kV PLN
-        </p>
+        {/* Footer info with slogan */}
+        <div className="text-center mt-6 space-y-2">
+          <p className="text-xs font-black tracking-widest text-emerald-400 uppercase animate-pulse">
+            ⚡ Menuju Zero Gangguan Pohon ⚡
+          </p>
+          <p className="text-[11px] text-slate-500">
+            Aplikasi Perang Pohon Baguala Support by the tukimen — Pemangkasan ROW &amp; Jaringan 20kV PLN
+          </p>
+        </div>
       </div>
     </div>
   );

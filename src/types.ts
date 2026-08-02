@@ -42,6 +42,8 @@ export interface ROWRecord {
   
   catatan?: string;
   tanggalUpdate?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface KPIStats {
@@ -70,6 +72,7 @@ export interface FilterState {
   bulan: string; // 'ALL' or '01'-'12' or 'YYYY-MM'
   tahun: number | 'ALL'; // 'ALL' or specific year like 2026, 2027
   search: string;
+  kendala?: string[]; // Optional multi-select constraint filter
 }
 
-export type ViewTab = 'dashboard' | 'timeline' | 'table' | 'charts' | 'calendar';
+export type ViewTab = 'dashboard' | 'timeline' | 'table' | 'charts' | 'calendar' | 'map';

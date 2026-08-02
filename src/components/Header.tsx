@@ -16,6 +16,7 @@ import {
   HardDriveDownload,
   Cloud,
   Eye,
+  FileSpreadsheet,
 } from 'lucide-react';
 import powerLinesBg from '../assets/images/power_lines_bg_1785580144298.jpg';
 
@@ -23,6 +24,7 @@ interface HeaderProps {
   onOpenModal: () => void;
   onResetData: () => void;
   onExportCsv: () => void;
+  onOpenPdfModal: () => void;
   onDeleteAllData?: () => void;
   onSaveData?: () => void;
   lastSaveTime?: string | null;
@@ -36,6 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenModal,
   onResetData,
   onExportCsv,
+  onOpenPdfModal,
   onDeleteAllData,
   onSaveData,
   lastSaveTime,
@@ -46,7 +49,12 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [showSaveToast, setShowSaveToast] = useState(false);
   const isAdmin = currentUser?.role === 'Admin System' || currentUser?.username === 'admin';
-  const isReadOnly = currentUser?.role === 'Manager' || currentUser?.role === 'Koordinator';
+  const isReadOnly = 
+    currentUser?.role === 'Manager' || 
+    currentUser?.role === 'Koordinator' || 
+    currentUser?.role === 'Team Leader' || 
+    currentUser?.role?.toLowerCase().includes('team leader') ||
+    currentUser?.username?.toLowerCase() === 'teamleader';
   const canInput = !isReadOnly;
 
   const handleSaveClick = () => {
@@ -191,6 +199,16 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Download className="w-3.5 h-3.5 text-slate-400" />
               <span>Export Excel</span>
+            </button>
+
+            {/* Tombol Export PDF */}
+            <button
+              onClick={onOpenPdfModal}
+              title="Download Laporan PDF Interaktif dengan Filter"
+              className="px-3 py-1.5 text-xs font-bold text-white bg-teal-600 hover:bg-teal-500 active:bg-teal-700 rounded-lg shadow-md shadow-teal-950/40 transition-all flex items-center space-x-1.5 border border-teal-400/30 group"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-teal-200 group-hover:scale-110 transition-transform" />
+              <span>Export PDF Interaktif</span>
             </button>
           </div>
 

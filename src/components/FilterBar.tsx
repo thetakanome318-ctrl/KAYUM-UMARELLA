@@ -1,13 +1,11 @@
 import React from 'react';
-import { Filter, Calendar, Search, LayoutDashboard, Clock, Table, BarChart3, X, CalendarDays } from 'lucide-react';
+import { Filter, Calendar, Search, LayoutDashboard, Clock, Table, BarChart3, X, CalendarDays, Zap, FileText, TreePine, Check, AlertCircle, Map } from 'lucide-react';
 import { FilterState, ViewTab } from '../types';
 import { BULAN_SIMPLE_LIST, YEAR_LIST } from '../data/mockData';
 
 interface FilterBarProps {
   filter: FilterState;
   onFilterChange: (newFilter: FilterState) => void;
-  activeTab: ViewTab;
-  onTabChange: (tab: ViewTab) => void;
   totalFilteredCount: number;
   availablePenyulang?: string[];
   availableYears?: number[];
@@ -16,8 +14,6 @@ interface FilterBarProps {
 export const FilterBar: React.FC<FilterBarProps> = ({
   filter,
   onFilterChange,
-  activeTab,
-  onTabChange,
   totalFilteredCount,
   availablePenyulang = [],
   availableYears = YEAR_LIST,
@@ -45,81 +41,42 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       bulan: 'ALL',
       tahun: 'ALL',
       search: '',
+      kendala: [],
     });
   };
 
-  const hasActiveFilters = filter.penyulang !== 'ALL' || filter.bulan !== 'ALL' || filter.tahun !== 'ALL' || filter.search !== '';
+  const hasActiveFilters = 
+    filter.penyulang !== 'ALL' || 
+    filter.bulan !== 'ALL' || 
+    filter.tahun !== 'ALL' || 
+    filter.search !== '' || 
+    (filter.kendala && filter.kendala.length > 0);
+
+  const activeKendala = filter.kendala || [];
+
+  const handleToggleKendala = (val: string) => {
+    let next: string[];
+    if (activeKendala.includes(val)) {
+      next = activeKendala.filter((k) => k !== val);
+    } else {
+      next = [...activeKendala, val];
+    }
+    onFilterChange({ ...filter, kendala: next });
+  };
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 sm:p-4 space-y-3">
-      {/* View Switcher & Search Bar Top Row */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-        
-        {/* Tabs navigation */}
-        <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
-          <button
-            onClick={() => onTabChange('dashboard')}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 transition ${
-              activeTab === 'dashboard'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-            }`}
-          >
-            <LayoutDashboard className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Dashboard Overview</span>
-          </button>
-
-          <button
-            onClick={() => onTabChange('charts')}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 transition ${
-              activeTab === 'charts'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-            }`}
-          >
-            <BarChart3 className="w-3.5 h-3.5 text-blue-600" />
-            <span>Grafik Tren & Analytics</span>
-          </button>
-
-          <button
-            onClick={() => onTabChange('timeline')}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 transition ${
-              activeTab === 'timeline'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-            }`}
-          >
-            <Clock className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Timeline Row Pohon</span>
-          </button>
-
-          <button
-            onClick={() => onTabChange('calendar')}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 transition ${
-              activeTab === 'calendar'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-            }`}
-          >
-            <Calendar className="w-3.5 h-3.5 text-purple-600" />
-            <span>Kalender Hasil Tanggal</span>
-          </button>
-
-          <button
-            onClick={() => onTabChange('table')}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center space-x-1.5 transition ${
-              activeTab === 'table'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-            }`}
-          >
-            <Table className="w-3.5 h-3.5 text-amber-600" />
-            <span>Data Tabel ({totalFilteredCount})</span>
-          </button>
+      {/* Search Bar Top Row */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-emerald-600" />
+          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            Filter &amp; Pencarian
+          </h4>
         </div>
 
         {/* Search input */}
-        <div className="relative min-w-[220px] max-w-xs">
+        <div className="relative min-w-[220px] max-w-xs w-full sm:w-auto">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
@@ -211,6 +168,65 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               <X className="w-3.5 h-3.5" />
               <span>Reset Filter</span>
             </button>
+          </div>
+        )}
+      </div>
+
+      {/* Multi-select Kategori Kendala */}
+      <div className="pt-3 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+            Filter Kategori Kendala:
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleToggleKendala('Perlu Padam')}
+              className={`px-3 py-1 text-xs font-semibold rounded-full border transition flex items-center space-x-1.5 ${
+                activeKendala.includes('Perlu Padam')
+                  ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-sm'
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+              }`}
+            >
+              <Zap className={`w-3.5 h-3.5 ${activeKendala.includes('Perlu Padam') ? 'text-rose-500 fill-rose-500' : 'text-slate-400'}`} />
+              <span>Perlu Padam</span>
+              {activeKendala.includes('Perlu Padam') && <Check className="w-3 h-3 text-rose-600 stroke-[3]" />}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleToggleKendala('Izin')}
+              className={`px-3 py-1 text-xs font-semibold rounded-full border transition flex items-center space-x-1.5 ${
+                activeKendala.includes('Izin')
+                  ? 'bg-amber-50 border-amber-300 text-amber-700 shadow-sm'
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+              }`}
+            >
+              <FileText className={`w-3.5 h-3.5 ${activeKendala.includes('Izin') ? 'text-amber-500' : 'text-slate-400'}`} />
+              <span>Belum Ada Izin</span>
+              {activeKendala.includes('Izin') && <Check className="w-3 h-3 text-amber-600 stroke-[3]" />}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleToggleKendala('Pohon Besar')}
+              className={`px-3 py-1 text-xs font-semibold rounded-full border transition flex items-center space-x-1.5 ${
+                activeKendala.includes('Pohon Besar')
+                  ? 'bg-purple-50 border-purple-300 text-purple-700 shadow-sm'
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+              }`}
+            >
+              <TreePine className={`w-3.5 h-3.5 ${activeKendala.includes('Pohon Besar') ? 'text-purple-500' : 'text-slate-400'}`} />
+              <span>Pohon Besar</span>
+              {activeKendala.includes('Pohon Besar') && <Check className="w-3 h-3 text-purple-600 stroke-[3]" />}
+            </button>
+          </div>
+        </div>
+
+        {activeKendala.length > 0 && (
+          <div className="text-[11px] text-slate-500 italic flex items-center gap-1">
+            <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+            <span>Menampilkan temuan dengan salah satu kendala terpilih</span>
           </div>
         )}
       </div>

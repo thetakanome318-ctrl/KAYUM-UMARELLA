@@ -19,12 +19,16 @@ import { TrendCharts } from './components/TrendCharts';
 import { TimelineView } from './components/TimelineView';
 import { DataTable } from './components/DataTable';
 import { EntryFormModal } from './components/EntryFormModal';
+import { ExportPdfModal } from './components/ExportPdfModal';
 import { AiAdvisor } from './components/AiAdvisor';
 import { LoginScreen } from './components/LoginScreen';
 import { UserManagementModal } from './components/UserManagementModal';
 import { TargetManagerModal } from './components/TargetManagerModal';
 import { CalendarView } from './components/CalendarView';
-import { Plus, Clock, FileSpreadsheet, Sparkles, CheckCircle2 } from 'lucide-react';
+import { MapView } from './components/MapView';
+import { Plus, Clock, FileSpreadsheet, Sparkles, CheckCircle2, Map as MapIcon, LayoutDashboard, BarChart3, Calendar, Table, TreePine, Download, FileText } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import bgImage from './assets/images/power_lines_bg_1785580144298.jpg';
 
 const STORAGE_KEY = 'row_tree_monitoring_records_v1';
@@ -119,6 +123,7 @@ export default function App() {
     bulan: 'ALL',
     tahun: 'ALL',
     search: '',
+    kendala: [],
   });
 
   // Active Tab
@@ -128,7 +133,18 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isTargetModalOpen, setIsTargetModalOpen] = useState(false);
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ROWRecord | null>(null);
+
+  const isReadOnly = useMemo(() => {
+    return (
+      currentUser?.role === 'Manager' || 
+      currentUser?.role === 'Koordinator' || 
+      currentUser?.role === 'Team Leader' || 
+      currentUser?.role?.toLowerCase().includes('team leader') ||
+      currentUser?.username?.toLowerCase() === 'teamleader'
+    );
+  }, [currentUser]);
 
   const handleTargetsUpdated = () => {
     setMonthlyTargetsMap(getMonthlyTargetsMap());
@@ -174,6 +190,18 @@ export default function App() {
           if (!isNaN(mKe) && r.bulanKe !== mKe) {
             return false;
           }
+        }
+      }
+      // Filter Kategori Kendala (Multi-select)
+      if (filter.kendala && filter.kendala.length > 0) {
+        const matchesAny = filter.kendala.some((k) => {
+          if (k === 'Perlu Padam') return r.perluPadam === true;
+          if (k === 'Izin') return r.tidakAdaIzin === true;
+          if (k === 'Pohon Besar') return r.pohonBesar === true;
+          return false;
+        });
+        if (!matchesAny) {
+          return false;
         }
       }
       // Filter Search
@@ -670,6 +698,198 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportTableOnlyExcel = () => {
+    if (filteredRecords.length === 0) {
+      alert('Tidak ada data untuk diexport.');
+      return;
+    }
+
+    const DELIM = ';';
+    const escapeCsv = (val: string | number | undefined | null) => {
+      if (val === undefined || val === null) return '""';
+      const s = String(val).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+
+    const csvLines: string[] = [];
+    csvLines.push('sep=;');
+
+    // Header Title
+    csvLines.push(`"LAPORAN DATA TABEL TEMUAN & REALISASI ROW POHON (DATA SAJA)"`);
+    csvLines.push(`"Tanggal Unduh"${DELIM}"${new Date().toLocaleDateString('id-ID')} ${new Date().toLocaleTimeString('id-ID')}"`);
+    csvLines.push(`"Jumlah Baris"${DELIM}"${filteredRecords.length} Section"`);
+    csvLines.push('');
+
+    const headers = [
+      'No',
+      'ID Rekaman',
+      'Bulan Periode',
+      'Tanggal Pelaksanaan',
+      'Nama Penyulang',
+      'Section Jaringan',
+      'Target KMS',
+      'Realisasi KMS',
+      'Realisasi Gawang',
+      'Jumlah Temuan Pohon',
+      'Realisasi Temuan Pohon',
+      'Luar Temuan Pohon',
+      'Realisasi Luar Temuan',
+      'Sisa Temuan Pohon',
+      'Capaian Temuan (%)',
+      'Perlu Padam',
+      'Tidak Ada Izin',
+      'Pohon Besar',
+      'Catatan / Keterangan'
+    ];
+    csvLines.push(headers.map(escapeCsv).join(DELIM));
+
+    filteredRecords.forEach((r, idx) => {
+      const sisaTemuan = (r.jumlahTemuan || 0) - (r.realisasiTemuan || 0);
+      const persentase = r.jumlahTemuan > 0 ? ((r.realisasiTemuan / r.jumlahTemuan) * 100).toFixed(1) + '%' : '0%';
+      
+      const row = [
+        idx + 1,
+        r.id,
+        formatBulan(r.bulan),
+        r.tanggal || '-',
+        r.penyulang || 'Tanpa Penyulang / Umum',
+        r.section,
+        r.targetKms || 0,
+        r.realisasiKms || 0,
+        r.realisasiGawang || 0,
+        r.jumlahTemuan || 0,
+        r.realisasiTemuan || 0,
+        r.luarTemuan || 0,
+        r.realisasiLuarTemuan || 0,
+        sisaTemuan,
+        persentase,
+        r.jumlahPerluPadam ?? (r.perluPadam ? 1 : 0),
+        r.jumlahTidakAdaIzin ?? (r.tidakAdaIzin ? 1 : 0),
+        r.jumlahPohonBesar ?? (r.pohonBesar ? 1 : 0),
+        r.catatan || ''
+      ];
+      csvLines.push(row.map(escapeCsv).join(DELIM));
+    });
+
+    const csvContent = '\uFEFF' + csvLines.join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Tabel_ROW_Baguala_Only_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportTableOnlyPdf = () => {
+    if (filteredRecords.length === 0) {
+      alert('Tidak ada data untuk diexport.');
+      return;
+    }
+
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    // Elegant header banner in forest green / emerald
+    doc.setFillColor(6, 78, 59); // deep emerald/forest green
+    doc.rect(0, 0, 297, 30, 'F');
+
+    // Title
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('PLN UP3 AMBON - ULP BAGUALA', 14, 11);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('LAPORAN DATA TABEL MONITORING & REALISASI ROW POHON', 14, 17);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(52, 211, 153); // emerald light text
+    doc.text('Slogan: Menuju Zero Gangguan Pohon', 14, 23);
+
+    // Metadata Block on right
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(209, 250, 229);
+    doc.text(`Dicetak Oleh: ${currentUser?.name || currentUser?.username || 'Sistem'}`, 210, 11);
+    doc.text(`Waktu Cetak: ${new Date().toLocaleDateString('id-ID')} ${new Date().toLocaleTimeString('id-ID')}`, 210, 17);
+    doc.text(`Jumlah Baris: ${filteredRecords.length} records (Filtered)`, 210, 23);
+
+    // Let's build table data
+    const tableHeaders = [
+      ['No', 'Bulan', 'Tanggal', 'Penyulang', 'Section', 'Tgt KMS', 'Rl KMS', 'Gwng', 'Tmn Phn', 'Rl Tmn', 'Luar Tmn', 'Sisa', 'Cap%']
+    ];
+
+    const tableRows = filteredRecords.map((r, idx) => {
+      const sisaTemuan = (r.jumlahTemuan || 0) - (r.realisasiTemuan || 0);
+      const persentase = r.jumlahTemuan > 0 ? ((r.realisasiTemuan / r.jumlahTemuan) * 100).toFixed(1) + '%' : '0%';
+      return [
+        idx + 1,
+        formatBulan(r.bulan),
+        r.tanggal || '-',
+        r.penyulang || 'Umum',
+        r.section,
+        r.targetKms || 0,
+        r.realisasiKms || 0,
+        r.realisasiGawang || 0,
+        r.jumlahTemuan || 0,
+        r.realisasiTemuan || 0,
+        r.luarTemuan || 0,
+        sisaTemuan,
+        persentase
+      ];
+    });
+
+    // AutoTable call
+    autoTable(doc, {
+      startY: 35,
+      head: tableHeaders,
+      body: tableRows,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [16, 185, 129], // emerald-500
+        textColor: [255, 255, 255],
+        fontSize: 8,
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      bodyStyles: {
+        fontSize: 7.5,
+        valign: 'middle'
+      },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 8 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 38 },
+        4: { cellWidth: 42 },
+        5: { halign: 'right', cellWidth: 15 },
+        6: { halign: 'right', cellWidth: 15 },
+        7: { halign: 'right', cellWidth: 12 },
+        8: { halign: 'right', cellWidth: 15 },
+        9: { halign: 'right', cellWidth: 15 },
+        10: { halign: 'right', cellWidth: 15 },
+        11: { halign: 'right', cellWidth: 12 },
+        12: { halign: 'center', cellWidth: 15 }
+      },
+      margin: { left: 10, right: 10 },
+      didDrawPage: (data) => {
+        // Footer Page numbering
+        const str = 'Halaman ' + data.pageNumber;
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        doc.text(str, data.settings.margin.left, doc.internal.pageSize.height - 10);
+      }
+    });
+
+    doc.save(`Tabel_ROW_Baguala_Only_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   if (!currentUser) {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
@@ -686,6 +906,7 @@ export default function App() {
         onOpenModal={handleOpenAddModal}
         onResetData={handleResetData}
         onExportCsv={handleExportCsv}
+        onOpenPdfModal={() => setIsPdfModalOpen(true)}
         onDeleteAllData={handleDeleteAllData}
         onSaveData={handleManualSave}
         lastSaveTime={lastSaveTime}
@@ -704,102 +925,274 @@ export default function App() {
           onOpenTargetModal={() => setIsTargetModalOpen(true)} 
         />
 
-        {/* Filter Bar & Navigation Tabs */}
-        <FilterBar
-          filter={filter}
-          onFilterChange={setFilter}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          totalFilteredCount={filteredRecords.length}
-          availablePenyulang={availablePenyulang}
-          availableYears={availableYears}
-        />
-
-        {/* Main Tab View Contents */}
-        {activeTab === 'dashboard' && (
-          <div className="space-y-6">
-            {/* AI Advisor Panel */}
-            <AiAdvisor records={filteredRecords} stats={kpiStats} />
-
-            {/* Combined Trend Charts Preview */}
-            <TrendCharts records={filteredRecords} />
-
-            {/* Quick Section Preview: Recent Timeline */}
-            <div className="bg-white/95 backdrop-blur-md rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-indigo-600" />
-                    Timeline ROW Pohon Terkini
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Progres pemangkasan pohon per penyulang &amp; section berdasarkan periode bulanan
-                  </p>
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* LEFT COLUMN: NAVIGATION SIDEBAR & COMMAND CENTER */}
+          <aside className="w-full lg:w-72 shrink-0 space-y-4">
+            <div className="bg-slate-900/90 backdrop-blur-md rounded-2xl border border-slate-800 p-5 shadow-xl text-white">
+              {/* Brand Logo & Slogan */}
+              <div className="mb-5 border-b border-slate-800/80 pb-4 text-center">
+                <div className="inline-flex p-3 bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 rounded-xl mb-3 shadow-inner shadow-emerald-500/10">
+                  <TreePine className="w-7 h-7 animate-pulse text-emerald-400" />
                 </div>
+                <h3 className="text-sm font-black tracking-widest text-emerald-400 uppercase">
+                  ⚡ BAGUALA ROW ⚡
+                </h3>
+                <p className="text-xs font-black tracking-widest text-emerald-400 uppercase mt-1.5 animate-pulse">
+                  Menuju Zero Gangguan Pohon
+                </p>
+                <p className="text-[10px] text-slate-400 mt-1 font-semibold uppercase tracking-wider">
+                  PLN UP3 Ambon - ULP Baguala
+                </p>
+              </div>
+
+              {/* Navigation Menu */}
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 mb-2">
+                  Menu Navigasi
+                </p>
+
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all ${
+                    activeTab === 'dashboard'
+                      ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 font-bold'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <LayoutDashboard className="w-4 h-4 shrink-0" />
+                  <span>Dashboard Overview</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('charts')}
+                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all ${
+                    activeTab === 'charts'
+                      ? 'bg-blue-500 text-slate-950 shadow-lg shadow-blue-500/20 font-bold'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4 shrink-0" />
+                  <span>Grafik Tren &amp; Analytics</span>
+                </button>
+
                 <button
                   onClick={() => setActiveTab('timeline')}
-                  className="text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1"
+                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all ${
+                    activeTab === 'timeline'
+                      ? 'bg-indigo-500 text-slate-950 shadow-lg shadow-indigo-500/20 font-bold'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
                 >
-                  Lihat Seluruh Timeline →
+                  <Clock className="w-4 h-4 shrink-0" />
+                  <span>Timeline ROW Pohon</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('calendar')}
+                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all ${
+                    activeTab === 'calendar'
+                      ? 'bg-purple-500 text-slate-950 shadow-lg shadow-purple-500/20 font-bold'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Calendar className="w-4 h-4 shrink-0" />
+                  <span>Kalender Hasil Tanggal</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('map')}
+                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all ${
+                    activeTab === 'map'
+                      ? 'bg-teal-500 text-slate-950 shadow-lg shadow-teal-500/20 font-bold'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <MapIcon className="w-4 h-4 shrink-0" />
+                  <span className="flex-1 text-left">Peta Sebaran</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('table')}
+                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all ${
+                    activeTab === 'table'
+                      ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 font-bold'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Table className="w-4 h-4 shrink-0" />
+                  <span className="flex-1 text-left">Data Tabel</span>
+                  <span className="bg-slate-800 text-[10px] text-slate-300 font-bold px-2 py-0.5 rounded-md border border-slate-700 shrink-0">
+                    {filteredRecords.length}
+                  </span>
                 </button>
               </div>
 
-              <TimelineView
-                records={filteredRecords.slice(0, 6)}
-                onSelectRecord={handleOpenEditModal}
-              />
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'charts' && (
-          <div className="space-y-6">
-            <TrendCharts records={filteredRecords} />
-          </div>
-        )}
-
-        {activeTab === 'timeline' && (
-          <div className="space-y-6">
-            <TimelineView
-              records={filteredRecords}
-              onSelectRecord={handleOpenEditModal}
-            />
-          </div>
-        )}
-
-        {activeTab === 'calendar' && (
-          <div className="space-y-6">
-            <CalendarView
-              records={filteredRecords}
-              onSelectRecord={handleOpenEditModal}
-            />
-          </div>
-        )}
-
-        {activeTab === 'table' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between bg-white/90 backdrop-blur-md p-4 rounded-xl border border-slate-200 shadow-sm">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">Data Tabel Temuan &amp; Realisasi ROW</h3>
-                <p className="text-xs text-slate-500">Daftar lengkap hasil temuan, realisasi KMS &amp; gawang, serta status kendala</p>
+              {/* Status block info */}
+              <div className="mt-5 pt-4 border-t border-slate-800/80 space-y-2 text-[11px] text-slate-400 leading-relaxed">
+                <div className="flex items-center space-x-2 text-slate-300">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="font-bold">Sistem Aktif</span>
+                </div>
+                <p>Baguala Support by the tukimen — Pemangkasan ROW &amp; Jaringan 20kV PLN.</p>
               </div>
-              <button
-                onClick={handleOpenAddModal}
-                className="px-3 py-1.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow-xs transition border border-emerald-300 flex items-center gap-1"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Tambah Realisasi</span>
-              </button>
             </div>
+          </aside>
 
-            <DataTable
-              records={filteredRecords}
-              onEditRecord={handleOpenEditModal}
-              onDeleteRecord={handleDeleteRecord}
-              onDeleteAllRecords={handleDeleteAllData}
+          {/* RIGHT COLUMN: FILTER DECK & ACTIVE TAB VIEW CONTENT */}
+          <div className="flex-1 space-y-6 min-w-0">
+            {/* Filter Bar */}
+            <FilterBar
+              filter={filter}
+              onFilterChange={setFilter}
+              totalFilteredCount={filteredRecords.length}
+              availablePenyulang={availablePenyulang}
+              availableYears={availableYears}
             />
+
+            {/* Main Tab View Contents */}
+            {activeTab === 'dashboard' && (
+              <div className="space-y-6">
+                {/* AI Advisor Panel */}
+                <AiAdvisor records={filteredRecords} stats={kpiStats} />
+
+                {/* Combined Trend Charts Preview */}
+                <TrendCharts records={filteredRecords} />
+
+                {/* Quick Section Preview: Recent Timeline */}
+                <div className="bg-white/95 backdrop-blur-md rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-indigo-600" />
+                        Timeline ROW Pohon Terkini
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Progres pemangkasan pohon per penyulang &amp; section berdasarkan periode bulanan
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab('timeline')}
+                      className="text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1"
+                    >
+                      Lihat Seluruh Timeline →
+                    </button>
+                  </div>
+
+                  <TimelineView
+                    records={filteredRecords.slice(0, 6)}
+                    onSelectRecord={handleOpenEditModal}
+                  />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'charts' && (
+              <div className="space-y-6">
+                <TrendCharts records={filteredRecords} />
+              </div>
+            )}
+
+            {activeTab === 'timeline' && (
+              <div className="space-y-6">
+                <TimelineView
+                  records={filteredRecords}
+                  onSelectRecord={handleOpenEditModal}
+                />
+              </div>
+            )}
+
+            {activeTab === 'calendar' && (
+              <div className="space-y-6">
+                <CalendarView
+                  records={filteredRecords}
+                  onSelectRecord={handleOpenEditModal}
+                />
+              </div>
+            )}
+
+            {activeTab === 'table' && (
+              <div className="space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between bg-white/90 backdrop-blur-md p-5 rounded-2xl border border-slate-200 shadow-sm gap-4">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Data Tabel Temuan &amp; Realisasi ROW</h3>
+                    <p className="text-xs text-slate-500">Daftar lengkap hasil temuan, realisasi KMS &amp; gawang, serta status kendala</p>
+                  </div>
+                  
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Export Excel Button */}
+                    <button
+                      onClick={handleExportTableOnlyExcel}
+                      title="Unduh data tabel dalam format Microsoft Excel (.csv)"
+                      className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 rounded-lg shadow-xs transition border border-slate-200 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                      <span>Export Excel (Tabel Saja)</span>
+                    </button>
+
+                    {/* Export PDF Button */}
+                    <button
+                      onClick={handleExportTableOnlyPdf}
+                      title="Unduh laporan data tabel ini dalam format PDF"
+                      className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 rounded-lg shadow-xs transition border border-slate-200 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <FileText className="w-4 h-4 text-rose-600" />
+                      <span>Export PDF (Tabel Saja)</span>
+                    </button>
+
+                    {!isReadOnly && (
+                      <button
+                        onClick={handleOpenAddModal}
+                        className="px-3 py-1.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow-xs transition border border-emerald-300 flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Tambah Realisasi</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <DataTable
+                  records={filteredRecords}
+                  onEditRecord={handleOpenEditModal}
+                  onDeleteRecord={handleDeleteRecord}
+                  onDeleteAllRecords={isReadOnly ? undefined : handleDeleteAllData}
+                  isReadOnly={isReadOnly}
+                />
+              </div>
+            )}
+
+            {activeTab === 'map' && (
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white/90 backdrop-blur-md p-4 rounded-xl border border-slate-200 shadow-sm gap-3">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <MapIcon className="w-5 h-5 text-teal-600 animate-pulse" />
+                      Peta Sebaran Gangguan &amp; Temuan ROW Pohon
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Visualisasi sebaran koordinat temuan dahan/pohon yang berpotensi menyentuh jaringan 20kV
+                    </p>
+                  </div>
+                  {!isReadOnly && (
+                    <button
+                      onClick={handleOpenAddModal}
+                      className="px-3 py-1.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow-xs transition border border-emerald-300 flex items-center justify-center gap-1 shrink-0"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Tambah Temuan Map</span>
+                    </button>
+                  )}
+                </div>
+
+                <MapView
+                  records={filteredRecords}
+                  onSelectRecord={handleOpenEditModal}
+                />
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
       </main>
 
@@ -821,6 +1214,15 @@ export default function App() {
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveRecord}
         initialData={editingRecord}
+        isReadOnly={isReadOnly}
+      />
+
+      {/* Interactive PDF Export Modal */}
+      <ExportPdfModal
+        isOpen={isPdfModalOpen}
+        onClose={() => setIsPdfModalOpen(false)}
+        records={records}
+        currentUser={currentUser}
       />
 
       {/* Admin User Management Modal */}
