@@ -1,16 +1,20 @@
 import React, { useMemo, useState } from 'react';
 import { ROWRecord } from '../types';
 import { formatBulan } from '../utils/calculations';
-import { Search, Calendar, ChevronDown, FileText } from 'lucide-react';
+import { Search, Calendar, ChevronDown, FileText, Trash2 } from 'lucide-react';
 
 interface InspectionViewProps {
   records: ROWRecord[];
   isLight?: boolean;
+  onDeleteRecord?: (id: string) => void;
+  isReadOnly?: boolean;
 }
 
 export const InspectionView: React.FC<InspectionViewProps> = ({ 
   records, 
-  isLight = false 
+  isLight = false,
+  onDeleteRecord,
+  isReadOnly = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'All' | 'ROW' | 'Inspeksi' | 'Gangguan'>('All');
@@ -21,7 +25,6 @@ export const InspectionView: React.FC<InspectionViewProps> = ({
     return records.filter(r => {
         const matchesSearch = r.section?.toLowerCase()?.includes(searchTerm.toLowerCase());
         const matchesType = filterType === 'All' || (filterType === 'Inspeksi' && r.inspectionType) || (filterType === 'ROW' && !r.inspectionType);
-        // Add date filtering logic here...
         return matchesSearch && matchesType;
     }).sort((a,b) => (b.tanggal || '').localeCompare(a.tanggal || ''));
   }, [records, searchTerm, filterType, filterYear, filterMonth]);
@@ -93,7 +96,23 @@ export const InspectionView: React.FC<InspectionViewProps> = ({
                         <div key={item.id} className={`rounded-xl border p-4 shadow-sm ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'}`}>
                             <div className="flex justify-between items-start mb-2">
                                 <span className={`text-[10px] font-bold uppercase ${item.inspectionType ? 'text-emerald-500' : 'text-blue-500'}`}>{item.inspectionType || 'ROW'}</span>
-                                <span className="text-[10px]">{item.tanggal}</span>
+                                <div className="flex items-center gap-1.5 text-[10px]">
+                                    <span>{item.tanggal}</span>
+                                    {!isReadOnly && onDeleteRecord && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (window.confirm('Apakah Anda ingin menghapus file / data ini?')) {
+                                                    onDeleteRecord(item.id);
+                                                }
+                                            }}
+                                            className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition active:scale-95 cursor-pointer"
+                                            title="Hapus"
+                                        >
+                                            <Trash2 className="w-3 h-3" />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                             <h4 className="text-sm font-bold mb-2">{item.section}</h4>
                             {item.inspectionType && (
@@ -121,6 +140,7 @@ export const InspectionView: React.FC<InspectionViewProps> = ({
                         <th className="p-3">Jenis</th>
                         <th className="p-3">T. Konstruksi</th>
                         <th className="p-3">T. Gardu</th>
+                        {!isReadOnly && onDeleteRecord && <th className="p-3 text-right">Aksi</th>}
                     </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -131,6 +151,21 @@ export const InspectionView: React.FC<InspectionViewProps> = ({
                             <td className="p-3">{item.inspectionType || 'ROW'}</td>
                             <td className="p-3">{item.temuanKonstruksi || 0}</td>
                             <td className="p-3">{item.temuanGardu || 0}</td>
+                            {!isReadOnly && onDeleteRecord && (
+                                <td className="p-3 text-right">
+                                    <button
+                                        onClick={() => {
+                                            if (window.confirm('Apakah Anda ingin menghapus file / data ini?')) {
+                                                onDeleteRecord(item.id);
+                                            }
+                                        }}
+                                        className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition active:scale-95 cursor-pointer"
+                                        title="Hapus"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                </td>
+                            )}
                         </tr>
                     ))}
                 </tbody>
@@ -139,4 +174,4 @@ export const InspectionView: React.FC<InspectionViewProps> = ({
       </div>
     </div>
   );
-}
+};

@@ -328,7 +328,11 @@ export const DataTable: React.FC<DataTableProps> = ({
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => onDeleteRecord(r.id)}
+                            onClick={() => {
+                              if (window.confirm('Apakah Anda ingin menghapus file / data ini?')) {
+                                onDeleteRecord(r.id);
+                              }
+                            }}
                             title="Hapus Record"
                             className={`p-1.5 rounded transition cursor-pointer ${
                               isLight 

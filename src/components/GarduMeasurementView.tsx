@@ -404,7 +404,11 @@ export const GarduMeasurementView: React.FC<GarduMeasurementViewProps> = ({
                             )}
                             {onDeleteRecord && (
                               <button
-                                onClick={() => onDeleteRecord(item.id)}
+                                onClick={() => {
+                                  if (window.confirm('Apakah Anda ingin menghapus file / data ini?')) {
+                                    onDeleteRecord(item.id);
+                                  }
+                                }}
                                 className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
                                 title="Hapus"
                               >

@@ -1,22 +1,26 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ROWRecord } from '../types';
 import { formatBulan, formatNumber } from '../utils/calculations';
-import { TreePine, PowerOff, ShieldAlert, CheckCircle2, Clock, Layers, Ruler, FileText } from 'lucide-react';
+import { TreePine, PowerOff, ShieldAlert, CheckCircle2, Clock, Layers, Ruler, FileText, Trash2 } from 'lucide-react';
 
 interface TimelineViewProps {
   records: ROWRecord[];
   onSelectRecord?: (record: ROWRecord) => void;
+  onDeleteRecord?: (id: string) => void;
   isLight?: boolean;
   onFilterChange?: (month: string, year: number | 'ALL') => void;
   currentFilter?: { month: string, year: number | 'ALL' };
+  isReadOnly?: boolean;
 }
 
 export const TimelineView: React.FC<TimelineViewProps> = ({ 
   records, 
   onSelectRecord, 
+  onDeleteRecord,
   isLight = false,
   onFilterChange,
-  currentFilter
+  currentFilter,
+  isReadOnly = false
 }) => {
   const [localYear, setLocalYear] = useState<number | 'ALL'>(currentFilter?.year || 'ALL');
   const [localMonth, setLocalMonth] = useState<string>(currentFilter?.month || 'ALL');
@@ -281,17 +285,33 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                               {item.section}
                             </h4>
                           </div>
-                          {isComplete ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                              <CheckCircle2 className="w-3 h-3 mr-1" />
-                              100% Selesai
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                              <Clock className="w-3 h-3 mr-1" />
-                              On Progress
-                            </span>
-                          )}
+                          <div className="flex items-center space-x-1.5 shrink-0">
+                            {isComplete ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3 mr-1" />
+                                100% Selesai
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                <Clock className="w-3 h-3 mr-1" />
+                                On Progress
+                              </span>
+                            )}
+                            {!isReadOnly && onDeleteRecord && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm('Apakah Anda ingin menghapus file / data ini?')) {
+                                    onDeleteRecord(item.id);
+                                  }
+                                }}
+                                className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition active:scale-95 cursor-pointer"
+                                title="Hapus Record"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         {/* KMS Realisasi Card */}

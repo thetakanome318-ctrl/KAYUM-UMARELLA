@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { ROWRecord, Penyulang, MasterSection } from '../types';
 import { formatBulan } from '../utils/calculations';
-import { Search, Plus, FileText } from 'lucide-react';
+import { Search, Plus, FileText, Edit3, Trash2 } from 'lucide-react';
 import { GangguanFormModal } from './GangguanFormModal';
 
 interface GangguanViewProps {
   records: ROWRecord[];
   isLight?: boolean;
   onSaveRecord?: (record: ROWRecord) => void;
+  onDeleteRecord?: (id: string) => void;
   penyulangList?: Penyulang[];
   sectionList?: MasterSection[];
   isReadOnly?: boolean;
@@ -17,12 +18,14 @@ export const GangguanView: React.FC<GangguanViewProps> = ({
   records, 
   isLight = false,
   onSaveRecord,
+  onDeleteRecord,
   penyulangList = [],
   sectionList = [],
   isReadOnly = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<ROWRecord | null>(null);
 
   const filteredRecords = useMemo(() => {
     return records.filter(r => r.gangguan).sort((a,b) => (b.tanggal || '').localeCompare(a.tanggal || ''));
@@ -58,7 +61,7 @@ export const GangguanView: React.FC<GangguanViewProps> = ({
                     <FileText className="w-4 h-4" /> Download Excel
                 </button>
                 {!isReadOnly && (
-                  <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 text-xs font-bold bg-emerald-500 text-slate-950 rounded-xl hover:bg-emerald-400 flex items-center gap-2 cursor-pointer shadow-md">
+                  <button onClick={() => { setEditingRecord(null); setIsModalOpen(true); }} className="px-4 py-2 text-xs font-bold bg-emerald-500 text-slate-950 rounded-xl hover:bg-emerald-400 flex items-center gap-2 cursor-pointer shadow-md">
                       <Plus className="w-4 h-4" /> Tambah Gangguan
                   </button>
                 )}
@@ -75,44 +78,88 @@ export const GangguanView: React.FC<GangguanViewProps> = ({
                         <th className="p-3">Section</th>
                         <th className="p-3">Keterangan</th>
                         <th className="p-3">Penyebab</th>
+                        {!isReadOnly && (onDeleteRecord || onSaveRecord) && <th className="p-3 text-right">Aksi</th>}
                     </tr>
                 </thead>
                 <tbody className="divide-y">
                     {filteredRecords.map(item => (
-                        <tr key={item.id}>
+                        <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                             <td className="p-3">{item.tanggal}</td>
                             <td className="p-3">{item.section}</td>
                             <td className="p-3">{item.gangguanKeterangan || '-'}</td>
                             <td className="p-3">{item.penyebab || '-'}</td>
+                            {!isReadOnly && (onDeleteRecord || onSaveRecord) && (
+                                <td className="p-3 text-right whitespace-nowrap">
+                                    <div className="flex items-center justify-end space-x-1">
+                                        {onSaveRecord && (
+                                            <button
+                                                onClick={() => {
+                                                    setEditingRecord(item);
+                                                    setIsModalOpen(true);
+                                                }}
+                                                className="p-1.5 text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors cursor-pointer"
+                                                title="Edit"
+                                            >
+                                                <Edit3 className="w-3.5 h-3.5" />
+                                            </button>
+                                        )}
+                                        {onDeleteRecord && (
+                                            <button
+                                                onClick={() => {
+                                                    if (window.confirm('Apakah Anda ingin menghapus file / data ini?')) {
+                                                        onDeleteRecord(item.id);
+                                                    }
+                                                }}
+                                                className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                                                title="Hapus"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </td>
+                            )}
                         </tr>
                     ))}
+                    {filteredRecords.length === 0 && (
+                        <tr>
+                            <td colSpan={5} className="p-8 text-center text-slate-400 italic">
+                                Belum ada data gangguan penyulang.
+                            </td>
+                        </tr>
+                    )}
                 </tbody>
             </table>
         </div>
       </div>
       <GangguanFormModal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+        onClose={() => { setIsModalOpen(false); setEditingRecord(null); }} 
         penyulangList={penyulangList}
         sectionList={sectionList}
+        initialData={editingRecord}
         onSave={(data) => { 
         if(onSaveRecord) {
             const newRecord: ROWRecord = {
-                id: data.id || crypto.randomUUID(),
-                bulan: data.bulan || new Date().toISOString().substring(0, 7),
-                tahun: data.tahun || new Date().getFullYear(),
-                bulanKe: data.bulanKe || new Date().getMonth() + 1,
+                id: editingRecord?.id || data.id || crypto.randomUUID(),
+                bulan: data.bulan || editingRecord?.bulan || new Date().toISOString().substring(0, 7),
+                tahun: data.tahun || editingRecord?.tahun || new Date().getFullYear(),
+                bulanKe: data.bulanKe || editingRecord?.bulanKe || new Date().getMonth() + 1,
                 section: data.section || 'N/A',
                 targetKms: data.targetKms || 0,
                 realisasiKms: data.realisasiKms || 0,
                 realisasiGawang: data.realisasiGawang || 0,
                 jumlahTemuan: data.jumlahTemuan || 0,
                 realisasiTemuan: data.realisasiTemuan || 0,
-                ...data
+                ...editingRecord,
+                ...data,
+                gangguan: true
             } as ROWRecord;
             onSaveRecord(newRecord);
+            setIsModalOpen(false);
+            setEditingRecord(null);
         }
       }} />
     </div>
   );
-}
+};

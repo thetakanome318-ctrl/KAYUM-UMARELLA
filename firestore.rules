@@ -33,7 +33,8 @@ service cloud.firestore {
     // Records Collection
     match /records/{recordId} {
       allow read: if true; 
-      allow write: if isValidROWRecord(incoming()); 
+      allow create, update: if isValidROWRecord(incoming()); 
+      allow delete: if true;
     }
 
     // Monthly Targets Collection

@@ -12,6 +12,7 @@ interface SaidiSaifiViewProps {
   onSaveRecord?: (record: ROWRecord) => void;
   onDeleteRecord?: (id: string) => void;
   penyulangList?: Penyulang[];
+  sectionList?: MasterSection[];
   isReadOnly?: boolean;
 }
 
@@ -21,6 +22,7 @@ export const SaidiSaifiView: React.FC<SaidiSaifiViewProps> = ({
   onSaveRecord,
   onDeleteRecord,
   penyulangList = [],
+  sectionList: sectionListProp,
   isReadOnly = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,72 +31,98 @@ export const SaidiSaifiView: React.FC<SaidiSaifiViewProps> = ({
   const [sectionList, setSectionList] = useState<MasterSection[]>([]);
 
   useEffect(() => {
-    const unsub = subscribeMasterSection(setSectionList);
-    return () => unsub();
-  }, []);
+    if (sectionListProp && sectionListProp.length > 0) {
+      setSectionList(sectionListProp);
+    } else {
+      const unsub = subscribeMasterSection(setSectionList);
+      return () => unsub();
+    }
+  }, [sectionListProp]);
 
-  // Sync Logic: Auto-fill fields based on Penyulang & Tanggal
+  // Sync Logic: Auto-fill fields based on Penyulang, Section & Tanggal
   useEffect(() => {
-    if (isModalOpen && editingData && editingData.penyulang && editingData.tanggal) {
+    if (isModalOpen && editingData && editingData.penyulang) {
       const selectedPenyulang = editingData.penyulang;
+      const selectedSection = editingData.section;
       const selectedDate = editingData.tanggal;
       const selectedTime = editingData.jamPadam || '';
 
-      // 1. Auto-fill Total Pelanggan (Sum of sections for this penyulang)
-      const totalPlg = sectionList
-        .filter(s => s.penyulang === selectedPenyulang)
-        .reduce((sum, s) => sum + (s.jumlahPelanggan || 0), 0);
-      
-      if (totalPlg > 0 && editingData.totalPelanggan === 0) {
-        setEditingData(prev => prev ? { ...prev, totalPelanggan: totalPlg } : null);
+      // 1. Auto-fill Total Pelanggan based on Section or Penyulang
+      if (selectedSection && selectedSection !== '') {
+        const sec = sectionList.find(s => s.penyulang === selectedPenyulang && s.namaSection === selectedSection);
+        if (sec && sec.jumlahPelanggan && (editingData.totalPelanggan === 0 || !editingData.totalPelanggan)) {
+          setEditingData(prev => prev ? { ...prev, totalPelanggan: sec.jumlahPelanggan } : null);
+        }
+      } else {
+        const totalPlg = sectionList
+          .filter(s => s.penyulang === selectedPenyulang)
+          .reduce((sum, s) => sum + (s.jumlahPelanggan || 0), 0);
+        
+        if (totalPlg > 0 && (editingData.totalPelanggan === 0 || !editingData.totalPelanggan)) {
+          setEditingData(prev => prev ? { ...prev, totalPelanggan: totalPlg } : null);
+        }
       }
 
       // 2. Auto-fill Lama Padam & Pelanggan Padam from Gangguan records if match found
-      // We look for records that are 'gangguan' and match penyulang, tanggal, and jamKeluar (as jamPadam)
-      const match = records.find(r => 
-        r.gangguan && 
-        r.penyulang === selectedPenyulang && 
-        r.tanggal === selectedDate &&
-        (selectedTime === '' || r.jamKeluar === selectedTime)
-      );
+      if (selectedDate) {
+        const match = records.find(r => 
+          r.gangguan && 
+          r.penyulang === selectedPenyulang && 
+          r.tanggal === selectedDate &&
+          (selectedTime === '' || r.jamKeluar === selectedTime) &&
+          (!selectedSection || r.section === selectedSection)
+        );
 
-      if (match) {
-        setEditingData(prev => {
-          if (!prev) return null;
-          // Only update if currently 0 to avoid overwriting manual changes if intended
-          const updates: Partial<ROWRecord> = {};
-          
-          if (prev.lamaPadamJam === 0) {
-            // Convert duration string "HH:mm" to hours if possible
-            if (match.durasi && match.durasi.includes(':')) {
-              const [h, m] = match.durasi.split(':').map(Number);
-              updates.lamaPadamJam = h + (m / 60);
+        if (match) {
+          setEditingData(prev => {
+            if (!prev) return null;
+            const updates: Partial<ROWRecord> = {};
+            
+            if (prev.lamaPadamJam === 0) {
+              if (match.durasi && match.durasi.includes(':')) {
+                const [h, m] = match.durasi.split(':').map(Number);
+                updates.lamaPadamJam = h + (m / 60);
+              }
             }
-          }
-          
-          if (prev.pelangganPadam === 0 && match.pelangganPadam) {
-            updates.pelangganPadam = match.pelangganPadam;
-          }
+            
+            if (prev.pelangganPadam === 0 && match.pelangganPadam) {
+              updates.pelangganPadam = match.pelangganPadam;
+            }
 
-          if (prev.jamPadam === '' || !prev.jamPadam) {
-            updates.jamPadam = match.jamKeluar;
-          }
+            if (!prev.jamPadam && match.jamKeluar) {
+              updates.jamPadam = match.jamKeluar;
+            }
 
-          if (Object.keys(updates).length > 0) {
-            return { ...prev, ...updates };
-          }
-          return prev;
-        });
+            if (!prev.section && match.section) {
+              updates.section = match.section;
+            }
+
+            if (Object.keys(updates).length > 0) {
+              return { ...prev, ...updates };
+            }
+            return prev;
+          });
+        }
       }
     }
-  }, [editingData?.penyulang, editingData?.tanggal, editingData?.jamPadam, isModalOpen, sectionList, records]);
+  }, [editingData?.penyulang, editingData?.section, editingData?.tanggal, editingData?.jamPadam, isModalOpen, sectionList, records]);
 
   const filteredRecords = useMemo(() => {
     return records
       .filter(r => r.isSaidiSaifi)
-      .filter(r => (r.penyulang || '').toLowerCase().includes(searchTerm.toLowerCase()) || (r.catatan || '').toLowerCase().includes(searchTerm.toLowerCase()))
+      .filter(r => 
+        (r.penyulang || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (r.section || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (r.catatan || '').toLowerCase().includes(searchTerm.toLowerCase())
+      )
       .sort((a,b) => (b.tanggal || '').localeCompare(a.tanggal || ''));
   }, [records, searchTerm]);
+
+  // Available sections for currently selected penyulang in edit form
+  const availableSections = useMemo(() => {
+    if (!editingData?.penyulang) return sectionList;
+    return sectionList.filter(s => s.penyulang === editingData.penyulang);
+  }, [sectionList, editingData?.penyulang]);
 
   // Handle Export CSV
   const handleExportCsv = () => {
@@ -102,11 +130,11 @@ export const SaidiSaifiView: React.FC<SaidiSaifiViewProps> = ({
     const lines = [
       'sep=;',
       `"DATA PERHITUNGAN SAIDI SAIFI"`,
-      `"Tanggal"${DELIM}"Penyulang"${DELIM}"Lama Padam (Jam)"${DELIM}"Pelanggan Padam"${DELIM}"Total Pelanggan"${DELIM}"SAIDI (Jam/Plg)"${DELIM}"SAIFI (Kali/Plg)"${DELIM}"Catatan"`,
+      `"Tanggal"${DELIM}"Penyulang"${DELIM}"Section"${DELIM}"Lama Padam (Jam)"${DELIM}"Pelanggan Padam"${DELIM}"Total Pelanggan"${DELIM}"SAIDI (Jam/Plg)"${DELIM}"SAIFI (Kali/Plg)"${DELIM}"Catatan"`,
       ...filteredRecords.map(r => {
         const saidi = (r.lamaPadamJam || 0) * (r.pelangganPadam || 0) / (r.totalPelanggan || 1);
         const saifi = (r.pelangganPadam || 0) / (r.totalPelanggan || 1);
-        return `"${r.tanggal || '-'}"${DELIM}"${r.penyulang || '-'}"${DELIM}"${r.lamaPadamJam || 0}"${DELIM}"${r.pelangganPadam || 0}"${DELIM}"${r.totalPelanggan || 0}"${DELIM}"${saidi.toFixed(4)}"${DELIM}"${saifi.toFixed(4)}"${DELIM}"${r.catatan || '-'}"`
+        return `"${r.tanggal || '-'}"${DELIM}"${r.penyulang || '-'}"${DELIM}"${r.section || '-'}"${DELIM}"${r.lamaPadamJam || 0}"${DELIM}"${r.pelangganPadam || 0}"${DELIM}"${r.totalPelanggan || 0}"${DELIM}"${saidi.toFixed(4)}"${DELIM}"${saifi.toFixed(4)}"${DELIM}"${r.catatan || '-'}"`
       })
     ];
     const blob = new Blob(["\uFEFF" + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -137,6 +165,7 @@ export const SaidiSaifiView: React.FC<SaidiSaifiViewProps> = ({
       return [
         r.tanggal || '-', 
         r.penyulang || '-', 
+        r.section || '-',
         r.lamaPadamJam || 0, 
         r.pelangganPadam || 0, 
         r.totalPelanggan || 0, 
@@ -148,7 +177,7 @@ export const SaidiSaifiView: React.FC<SaidiSaifiViewProps> = ({
 
     autoTable(doc, {
       startY: 35,
-      head: [['Tanggal', 'Penyulang', 'Lama Padam (Jam)', 'Plg Padam', 'Total Plg', 'SAIDI', 'SAIFI', 'Catatan']],
+      head: [['Tanggal', 'Penyulang', 'Section', 'Lama Padam (Jam)', 'Plg Padam', 'Total Plg', 'SAIDI', 'SAIFI', 'Catatan']],
       body: rows,
       theme: 'grid',
       headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
@@ -201,32 +230,36 @@ export const SaidiSaifiView: React.FC<SaidiSaifiViewProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleExportCsv}
-            className="px-3 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-lg transition-all flex items-center space-x-1.5"
+            className="px-3 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-lg transition-all flex items-center space-x-1.5 cursor-pointer"
           >
             <FileText className="w-4 h-4" />
             <span>Excel</span>
           </button>
           <button
             onClick={handleExportPdf}
-            className="px-3 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white rounded-xl shadow-lg transition-all flex items-center space-x-1.5"
+            className="px-3 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white rounded-xl shadow-lg transition-all flex items-center space-x-1.5 cursor-pointer"
           >
             <Download className="w-4 h-4" />
             <span>PDF</span>
           </button>
-          {onSaveRecord && (
+          {onSaveRecord && !isReadOnly && (
             <button
               onClick={() => {
+                const initialPenyulang = penyulangList[0]?.nama || '';
+                const initialSecs = sectionList.filter(s => s.penyulang === initialPenyulang);
+                const initialTotalPlg = initialSecs.reduce((sum, s) => sum + (s.jumlahPelanggan || 0), 0);
                 setEditingData({ 
                   tanggal: new Date().toISOString().split('T')[0],
                   lamaPadamJam: 0,
                   pelangganPadam: 0,
-                  totalPelanggan: 0,
-                  penyulang: penyulangList[0]?.nama || '',
+                  totalPelanggan: initialTotalPlg,
+                  penyulang: initialPenyulang,
+                  section: '',
                   catatan: ''
                 });
                 setIsModalOpen(true);
               }}
-              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center space-x-2"
+              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center space-x-2 cursor-pointer"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
               <span>Tambah Data</span>
@@ -241,7 +274,7 @@ export const SaidiSaifiView: React.FC<SaidiSaifiViewProps> = ({
           <Search className="w-4 h-4 text-slate-400" />
           <input 
             type="text" 
-            placeholder="Cari penyulang atau catatan..." 
+            placeholder="Cari penyulang, section, atau catatan..." 
             className="bg-transparent border-none outline-none text-sm w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -253,13 +286,14 @@ export const SaidiSaifiView: React.FC<SaidiSaifiViewProps> = ({
               <tr className={`${isLight ? 'bg-slate-100' : 'bg-slate-950'}`}>
                 <th className="p-3 font-bold">Tanggal</th>
                 <th className="p-3 font-bold">Penyulang</th>
+                <th className="p-3 font-bold">Section</th>
                 <th className="p-3 font-bold text-center">Lama Padam (Jam)</th>
                 <th className="p-3 font-bold text-center">Pelanggan Padam</th>
                 <th className="p-3 font-bold text-center">Total Pelanggan</th>
                 <th className="p-3 font-bold text-center">SAIDI (Jam/Plg)</th>
                 <th className="p-3 font-bold text-center">SAIFI (Kali/Plg)</th>
                 <th className="p-3 font-bold">Catatan</th>
-                <th className="p-3 font-bold text-right">Aksi</th>
+                {!isReadOnly && (onDeleteRecord || onSaveRecord) && <th className="p-3 font-bold text-right">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60">
@@ -280,41 +314,44 @@ export const SaidiSaifiView: React.FC<SaidiSaifiViewProps> = ({
                         {item.jamPadam && <div className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5"><Clock className="w-2.5 h-2.5" /> {item.jamPadam}</div>}
                       </td>
                       <td className="p-3 font-semibold">{item.penyulang}</td>
+                      <td className="p-3 text-slate-400 font-medium">{item.section || '-'}</td>
                       <td className="p-3 text-center">{item.lamaPadamJam}</td>
                       <td className="p-3 text-center">{item.pelangganPadam?.toLocaleString()}</td>
                       <td className="p-3 text-center">{item.totalPelanggan?.toLocaleString()}</td>
                       <td className="p-3 text-center font-bold text-blue-500">{saidi.toFixed(4)}</td>
                       <td className="p-3 text-center font-bold text-emerald-500">{saifi.toFixed(4)}</td>
                       <td className="p-3 truncate max-w-[150px]">{item.catatan || '-'}</td>
-                      <td className="p-3 text-right">
-                        <div className="flex items-center justify-end space-x-2">
-                          {onSaveRecord && (
-                            <button
-                              onClick={() => {
-                                setEditingData(item);
-                                setIsModalOpen(true);
-                              }}
-                              className={`p-1.5 rounded hover:bg-blue-500/20 text-blue-500 transition-colors`}
-                              title="Edit"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                          )}
-                          {onDeleteRecord && (
-                            <button
-                              onClick={() => {
-                                if(window.confirm('Hapus data ini?')) {
-                                  onDeleteRecord(item.id);
-                                }
-                              }}
-                              className={`p-1.5 rounded hover:bg-rose-500/20 text-rose-500 transition-colors`}
-                              title="Hapus"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
+                      {!isReadOnly && (onDeleteRecord || onSaveRecord) && (
+                        <td className="p-3 text-right">
+                          <div className="flex items-center justify-end space-x-2">
+                            {onSaveRecord && (
+                              <button
+                                onClick={() => {
+                                  setEditingData(item);
+                                  setIsModalOpen(true);
+                                }}
+                                className={`p-1.5 rounded hover:bg-blue-500/20 text-blue-500 transition-colors cursor-pointer`}
+                                title="Edit"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                            )}
+                            {onDeleteRecord && (
+                              <button
+                                onClick={() => {
+                                  if(window.confirm('Apakah Anda ingin menghapus file / data ini?')) {
+                                    onDeleteRecord(item.id);
+                                  }
+                                }}
+                                className={`p-1.5 rounded hover:bg-rose-500/20 text-rose-500 transition-colors cursor-pointer`}
+                                title="Hapus"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   )
                 })
@@ -327,7 +364,7 @@ export const SaidiSaifiView: React.FC<SaidiSaifiViewProps> = ({
       {/* Modal Input */}
       {isModalOpen && editingData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className={`w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden border ${
+          <div className={`w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border ${
             isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'
           }`}>
             <div className={`px-6 py-4 border-b flex justify-between items-center ${
@@ -338,14 +375,14 @@ export const SaidiSaifiView: React.FC<SaidiSaifiViewProps> = ({
               </h3>
               <button 
                 onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-rose-500 transition-colors"
+                className="text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
               >
                 ✕
               </button>
             </div>
             
             <div className="p-6 space-y-4 text-sm">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-500">Tanggal Kejadian</label>
                   <input
@@ -357,6 +394,7 @@ export const SaidiSaifiView: React.FC<SaidiSaifiViewProps> = ({
                     }`}
                   />
                 </div>
+
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-500">Jam Padam</label>
                   <input
@@ -368,11 +406,22 @@ export const SaidiSaifiView: React.FC<SaidiSaifiViewProps> = ({
                     }`}
                   />
                 </div>
+
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-500">Penyulang</label>
                   <select
                     value={editingData.penyulang || ''}
-                    onChange={e => setEditingData({...editingData, penyulang: e.target.value})}
+                    onChange={e => {
+                      const newPenyulang = e.target.value;
+                      const secsForPenyulang = sectionList.filter(s => s.penyulang === newPenyulang);
+                      const sumTotalPlg = secsForPenyulang.reduce((acc, s) => acc + (s.jumlahPelanggan || 0), 0);
+                      setEditingData({
+                        ...editingData, 
+                        penyulang: newPenyulang,
+                        section: '',
+                        totalPelanggan: sumTotalPlg > 0 ? sumTotalPlg : editingData.totalPelanggan
+                      });
+                    }}
                     className={`w-full px-3 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500 outline-none ${
                       isLight ? 'bg-slate-50 border-slate-300 text-slate-800' : 'bg-slate-950 border-slate-700 text-white'
                     }`}
@@ -383,9 +432,35 @@ export const SaidiSaifiView: React.FC<SaidiSaifiViewProps> = ({
                     ))}
                   </select>
                 </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500">Section (Master Data)</label>
+                  <select
+                    value={editingData.section || ''}
+                    onChange={e => {
+                      const secName = e.target.value;
+                      const secObj = sectionList.find(s => s.penyulang === editingData.penyulang && s.namaSection === secName);
+                      setEditingData({
+                        ...editingData, 
+                        section: secName,
+                        totalPelanggan: secObj?.jumlahPelanggan ? secObj.jumlahPelanggan : editingData.totalPelanggan
+                      });
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500 outline-none ${
+                      isLight ? 'bg-slate-50 border-slate-300 text-slate-800' : 'bg-slate-950 border-slate-700 text-white'
+                    }`}
+                  >
+                    <option value="">-- Semua Section --</option>
+                    {availableSections.map(s => (
+                      <option key={s.id} value={s.namaSection}>
+                        {s.namaSection} {s.jumlahPelanggan ? `(${s.jumlahPelanggan} plg)` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-500">Lama Padam (Jam)</label>
                   <input
@@ -463,13 +538,13 @@ export const SaidiSaifiView: React.FC<SaidiSaifiViewProps> = ({
             }`}>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+                className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors cursor-pointer"
               >
                 Batal
               </button>
               <button
                 onClick={handleSave}
-                className="px-6 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center space-x-2"
+                className="px-6 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center space-x-2 cursor-pointer"
               >
                 <Save className="w-4 h-4" />
                 <span>Simpan Data</span>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { ROWRecord, Penyulang, MasterSection } from '../types';
 
@@ -8,6 +8,7 @@ interface GangguanFormModalProps {
   onSave: (data: Partial<ROWRecord>) => void;
   penyulangList?: Penyulang[];
   sectionList?: MasterSection[];
+  initialData?: Partial<ROWRecord> | null;
 }
 
 export const GangguanFormModal: React.FC<GangguanFormModalProps> = ({ 
@@ -15,14 +16,40 @@ export const GangguanFormModal: React.FC<GangguanFormModalProps> = ({
   onClose, 
   onSave,
   penyulangList = [],
-  sectionList = []
+  sectionList = [],
+  initialData = null
 }) => {
   const [formData, setFormData] = useState<Partial<ROWRecord>>({
     gangguan: true,
     tanggal: new Date().toISOString().split('T')[0],
     penyulang: '',
     section: '',
+    gangguanKeterangan: '',
+    penyebab: '',
   });
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        gangguan: true,
+        tanggal: initialData.tanggal || new Date().toISOString().split('T')[0],
+        penyulang: initialData.penyulang || '',
+        section: initialData.section || '',
+        gangguanKeterangan: initialData.gangguanKeterangan || '',
+        penyebab: initialData.penyebab || '',
+        ...initialData
+      });
+    } else {
+      setFormData({
+        gangguan: true,
+        tanggal: new Date().toISOString().split('T')[0],
+        penyulang: '',
+        section: '',
+        gangguanKeterangan: '',
+        penyebab: '',
+      });
+    }
+  }, [initialData, isOpen]);
 
   if (!isOpen) return null;
 
@@ -33,7 +60,7 @@ export const GangguanFormModal: React.FC<GangguanFormModalProps> = ({
     <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-slate-900 rounded-2xl w-full max-w-lg p-6 border border-slate-800 my-auto max-h-[90vh] flex flex-col">
         <div className="flex justify-between items-center mb-4 flex-shrink-0">
-          <h2 className="text-lg font-bold text-white">Input Gangguan Penyulang</h2>
+          <h2 className="text-lg font-bold text-white">{initialData?.id ? 'Edit Gangguan Penyulang' : 'Input Gangguan Penyulang'}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white">
             <X className="w-5 h-5" />
           </button>

@@ -323,10 +323,14 @@ export default function App() {
   };
 
   const handleDeleteRecord = async (id: string) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus data temuan ini?')) {
-      setRecords((prev) => prev.filter((item) => item.id !== id));
+    if (window.confirm('Apakah Anda ingin menghapus file / data ini?')) {
+      const updated = records.filter((item) => item.id !== id);
+      setRecords(updated);
       try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
         await deleteRecordFromCloud(id);
+        const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setLastSaveTime(nowTime);
       } catch (e) {
         console.error('Error deleting from Cloud Firestore:', e);
       }
@@ -1503,6 +1507,10 @@ export default function App() {
             {activeTab === 'timeline' && (
               <TimelineView
                 records={records}
+                onSelectRecord={handleOpenEditModal}
+                onDeleteRecord={handleDeleteRecord}
+                isReadOnly={isReadOnly}
+                isLight={isLight}
               />
             )}
 
@@ -1533,6 +1541,8 @@ export default function App() {
               <InspectionView
                 records={records}
                 isLight={isLight}
+                onDeleteRecord={handleDeleteRecord}
+                isReadOnly={isReadOnly}
               />
             )}
 
@@ -1556,6 +1566,7 @@ export default function App() {
                 records={records}
                 isLight={isLight}
                 onSaveRecord={handleSaveRecord}
+                onDeleteRecord={handleDeleteRecord}
                 isReadOnly={isReadOnly}
               />
             )}
@@ -1577,6 +1588,7 @@ export default function App() {
                 onSaveRecord={handleSaveRecord}
                 onDeleteRecord={handleDeleteRecord}
                 penyulangList={penyulangMaster}
+                sectionList={sectionMaster}
                 isReadOnly={isReadOnly}
               />
             )}
