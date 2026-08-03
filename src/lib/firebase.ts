@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import firebaseConfigData from '../../firebase-applet-config.json';
-import { ROWRecord, Penyulang, MasterSection } from '../types';
+import { ROWRecord, Penyulang, MasterSection, GangguanPangkalRecord } from '../types';
 import { MonthlyTargetItem } from '../utils/targetStorage';
 
 const firebaseConfig = {
@@ -37,6 +37,7 @@ const RECORDS_COLLECTION = 'records';
 const TARGETS_COLLECTION = 'monthlyTargets';
 const PENYULANG_COLLECTION = 'penyulang';
 const MASTER_SECTION_COLLECTION = 'masterSection';
+const GANGGUAN_PANGKAL_COLLECTION = 'gangguanPangkal';
 
 // Error Handling helper as per firebase-integration skill
 enum OperationType {
@@ -311,5 +312,45 @@ export async function syncAllTargetsToCloud(targetsMap: Record<string, MonthlyTa
     await batch.commit();
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, TARGETS_COLLECTION);
+  }
+}
+
+// Real-time listener for Gangguan Pangkal Records
+export function subscribeGangguanPangkal(callback: (records: GangguanPangkalRecord[]) => void): () => void {
+  const collectionRef = collection(db, GANGGUAN_PANGKAL_COLLECTION);
+  return onSnapshot(collectionRef, (snapshot) => {
+    const list: GangguanPangkalRecord[] = [];
+    snapshot.forEach((docSnap) => {
+      list.push({ id: docSnap.id, ...docSnap.data() } as GangguanPangkalRecord);
+    });
+    callback(list);
+  }, (error) => {
+    console.error('Error listening to Gangguan Pangkal:', error);
+  });
+}
+
+// Save or Update a Gangguan Pangkal record in Cloud
+export async function saveGangguanPangkalToCloud(record: GangguanPangkalRecord): Promise<void> {
+  const path = `${GANGGUAN_PANGKAL_COLLECTION}/${record.id}`;
+  try {
+    const docRef = doc(db, GANGGUAN_PANGKAL_COLLECTION, record.id);
+    const dataToSave = sanitizeData({
+      ...record,
+      updatedAt: new Date().toISOString()
+    });
+    await setDoc(docRef, dataToSave, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+// Delete a Gangguan Pangkal record from Cloud
+export async function deleteGangguanPangkalFromCloud(id: string): Promise<void> {
+  const path = `${GANGGUAN_PANGKAL_COLLECTION}/${id}`;
+  try {
+    const docRef = doc(db, GANGGUAN_PANGKAL_COLLECTION, id);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
   }
 }

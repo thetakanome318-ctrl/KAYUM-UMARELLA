@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
-import { ROWRecord, Penyulang, MasterSection } from '../types';
+import React, { useMemo, useState, useEffect } from 'react';
+import { ROWRecord, Penyulang, MasterSection, GangguanPangkalRecord } from '../types';
 import { formatBulan } from '../utils/calculations';
 import { Search, Plus, FileText, Edit3, Trash2 } from 'lucide-react';
 import { GangguanFormModal } from './GangguanFormModal';
+import { subscribePenyulang, subscribeMasterSection, saveGangguanPangkalToCloud } from '../lib/firebase';
 
 interface GangguanViewProps {
   records: ROWRecord[];
@@ -19,25 +20,53 @@ export const GangguanView: React.FC<GangguanViewProps> = ({
   isLight = false,
   onSaveRecord,
   onDeleteRecord,
-  penyulangList = [],
-  sectionList = [],
+  penyulangList: penyulangProp = [],
+  sectionList: sectionProp = [],
   isReadOnly = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ROWRecord | null>(null);
+  const [penyulangList, setPenyulangList] = useState<Penyulang[]>(penyulangProp);
+  const [sectionList, setSectionList] = useState<MasterSection[]>(sectionProp);
+
+  useEffect(() => {
+    if (penyulangProp && penyulangProp.length > 0) {
+      setPenyulangList(penyulangProp);
+    } else {
+      const unsubP = subscribePenyulang(setPenyulangList);
+      return () => unsubP();
+    }
+  }, [penyulangProp]);
+
+  useEffect(() => {
+    if (sectionProp && sectionProp.length > 0) {
+      setSectionList(sectionProp);
+    } else {
+      const unsubS = subscribeMasterSection(setSectionList);
+      return () => unsubS();
+    }
+  }, [sectionProp]);
 
   const filteredRecords = useMemo(() => {
-    return records.filter(r => r.gangguan).sort((a,b) => (b.tanggal || '').localeCompare(a.tanggal || ''));
-  }, [records]);
+    return records
+      .filter(r => r.gangguan)
+      .filter(r => 
+        (r.penyulang || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (r.section || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (r.gangguanKeterangan || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (r.penyebab || '').toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .sort((a,b) => (b.tanggal || '').localeCompare(a.tanggal || ''));
+  }, [records, searchTerm]);
 
   const handleExportCsv = () => {
     const DELIM = ';';
     const lines = [
       'sep=;',
       `"DATA GANGGUAN PENYULANG"`,
-      `"Tanggal"${DELIM}"Section"${DELIM}"Keterangan"${DELIM}"Penyebab"`,
-      ...filteredRecords.map(r => `"${r.tanggal || '-'}"${DELIM}"${r.section || '-'}"${DELIM}"${r.gangguanKeterangan || '-'}"${DELIM}"${r.penyebab || '-'}"`)
+      `"Tanggal"${DELIM}"Penyulang"${DELIM}"Section"${DELIM}"Keterangan"${DELIM}"Penyebab"`,
+      ...filteredRecords.map(r => `"${r.tanggal || '-'}"${DELIM}"${r.penyulang || '-'}"${DELIM}"${r.section || '-'}"${DELIM}"${r.gangguanKeterangan || '-'}"${DELIM}"${r.penyebab || '-'}"`)
     ];
     const blob = new Blob(["\uFEFF" + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -54,7 +83,7 @@ export const GangguanView: React.FC<GangguanViewProps> = ({
         <div className={`p-4 rounded-xl border flex flex-wrap gap-4 items-center ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'}`}>
             <div className="flex-1 min-w-[200px] relative">
                 <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400"/>
-                <input type="text" placeholder="Cari gangguan..." className={`w-full pl-10 pr-3 py-2 text-xs rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800 border-slate-700'}`} value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
+                <input type="text" placeholder="Cari penyulang, section, gangguan..." className={`w-full pl-10 pr-3 py-2 text-xs rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800 border-slate-700'}`} value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
             </div>
             <div className="flex items-center gap-2">
                 <button onClick={handleExportCsv} className="px-4 py-2 text-xs font-bold bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 flex items-center gap-2 cursor-pointer shadow-md">
@@ -75,6 +104,7 @@ export const GangguanView: React.FC<GangguanViewProps> = ({
                 <thead>
                     <tr className={`${isLight ? 'bg-slate-100' : 'bg-slate-950'}`}>
                         <th className="p-3">Tanggal</th>
+                        <th className="p-3">Penyulang</th>
                         <th className="p-3">Section</th>
                         <th className="p-3">Keterangan</th>
                         <th className="p-3">Penyebab</th>
@@ -84,8 +114,9 @@ export const GangguanView: React.FC<GangguanViewProps> = ({
                 <tbody className="divide-y">
                     {filteredRecords.map(item => (
                         <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                            <td className="p-3">{item.tanggal}</td>
-                            <td className="p-3">{item.section}</td>
+                            <td className="p-3 whitespace-nowrap">{item.tanggal}</td>
+                            <td className="p-3 font-semibold text-emerald-500">{item.penyulang || '-'}</td>
+                            <td className="p-3 font-medium">{item.section || '-'}</td>
                             <td className="p-3">{item.gangguanKeterangan || '-'}</td>
                             <td className="p-3">{item.penyebab || '-'}</td>
                             {!isReadOnly && (onDeleteRecord || onSaveRecord) && (
@@ -123,7 +154,7 @@ export const GangguanView: React.FC<GangguanViewProps> = ({
                     ))}
                     {filteredRecords.length === 0 && (
                         <tr>
-                            <td colSpan={5} className="p-8 text-center text-slate-400 italic">
+                            <td colSpan={6} className="p-8 text-center text-slate-400 italic">
                                 Belum ada data gangguan penyulang.
                             </td>
                         </tr>
@@ -155,6 +186,34 @@ export const GangguanView: React.FC<GangguanViewProps> = ({
                 ...data,
                 gangguan: true
             } as ROWRecord;
+
+            // Connect to Gangguan Pangkal if Penyulang is "Utama"
+            if (newRecord.penyulang && !editingRecord) {
+              const matchedPenyulang = penyulangList.find(p => p.nama === newRecord.penyulang);
+              if (matchedPenyulang && matchedPenyulang.statusPenyulang === 'Utama') {
+                const BULAN_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                const mKe = newRecord.bulanKe || new Date().getMonth() + 1;
+                const mName = BULAN_NAMES[mKe - 1];
+                const yyyy = newRecord.tahun || new Date().getFullYear();
+                
+                const pangkalData: GangguanPangkalRecord = {
+                  id: crypto.randomUUID(),
+                  namaGI: matchedPenyulang.namaGI || 'GI PASSO',
+                  namaPenyulang: matchedPenyulang.nama,
+                  statusPenyulang: 'Utama',
+                  bulan: `${mName} ${yyyy}`,
+                  tahun: yyyy,
+                  bulanKe: mKe,
+                  jumlahGangguan: 1,
+                  kodePenyebab: newRecord.kodeGangguan || 'I-1',
+                  keteranganPenyebab: newRecord.gangguanKeterangan || newRecord.penyebab,
+                  tanggal: newRecord.tanggal
+                };
+                
+                saveGangguanPangkalToCloud(pangkalData).catch(e => console.error('Failed to auto-create Gangguan Pangkal:', e));
+              }
+            }
+
             onSaveRecord(newRecord);
             setIsModalOpen(false);
             setEditingRecord(null);

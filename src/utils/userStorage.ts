@@ -43,6 +43,14 @@ export const DEFAULT_USERS: UserAccount[] = [
     role: 'Operator',
     createdAt: '2026-01-01T08:00:00Z',
   },
+  {
+    id: 'usr-timteknik-01',
+    username: 'timteknik',
+    password: 'teknik123',
+    name: 'Tim Teknik & Pemeliharaan',
+    role: 'Tim Teknik',
+    createdAt: '2026-01-01T08:00:00Z',
+  },
 ];
 
 export function getUsersList(): UserAccount[] {

@@ -37,9 +37,12 @@ import { InspectionMonitoringView } from './components/InspectionMonitoringView'
 import { RowMonitoringView } from './components/RowMonitoringView';
 import { DashboardTargetTable } from './components/DashboardTargetTable';
 import { SaidiSaifiView } from './components/SaidiSaifiView';
+import { HealthIndexView } from './components/HealthIndexView';
+import { GangguanPangkalView } from './components/GangguanPangkalView';
+import { HealthIndexSummaryCard } from './components/HealthIndexSummaryCard';
 import { TopGangguanPenyulangCard } from './components/TopGangguanPenyulangCard';
 import { TopRowPruningRecommendationCard } from './components/TopRowPruningRecommendationCard';
-import { Plus, Clock, FileSpreadsheet, Sparkles, CheckCircle2, Map as MapIcon, LayoutDashboard, BarChart3, Calendar, Table, TreePine, Download, FileText, LogOut, Save, Users, Database, Target, ChevronDown, ClipboardCheck, Zap } from 'lucide-react';
+import { Plus, Clock, FileSpreadsheet, Sparkles, CheckCircle2, Map as MapIcon, LayoutDashboard, BarChart3, Calendar, Table, TreePine, Download, FileText, LogOut, Save, Users, Database, Target, ChevronDown, ClipboardCheck, Zap, HeartPulse } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import bgImage from './assets/images/power_lines_bg_1785580144298.jpg';
@@ -1426,6 +1429,34 @@ export default function App() {
                   <span>Perhitungan SAIDI & SAIFI</span>
                 </button>
 
+                <button
+                  onClick={() => setActiveTab('health_index')}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                    activeTab === 'health_index'
+                      ? 'bg-rose-500 text-slate-950 shadow-lg shadow-rose-500/20 font-bold'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <HeartPulse className="w-4 h-4 shrink-0" />
+                  <span>Health Index Penyulang</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('gangguan_pangkal')}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
+                    activeTab === 'gangguan_pangkal'
+                      ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 font-bold'
+                      : isLight
+                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Zap className="w-4 h-4 shrink-0" />
+                  <span>Gangguan Pangkal (GI)</span>
+                </button>
+
                 {!isReadOnly && (
                   <div className="pt-2 space-y-2">
                     <button
@@ -1461,6 +1492,14 @@ export default function App() {
           <div className="flex-1 min-w-0">
             {activeTab === 'dashboard' && (
               <div className="space-y-6">
+                <HealthIndexSummaryCard
+                  records={records}
+                  penyulangMaster={penyulangMaster}
+                  selectedYear={selectedYear}
+                  selectedMonth={selectedMonth}
+                  isLight={isLight}
+                  onNavigateToHealthIndex={() => setActiveTab('health_index')}
+                />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <TopGangguanPenyulangCard 
                     records={records} 
@@ -1567,6 +1606,8 @@ export default function App() {
                 isLight={isLight}
                 onSaveRecord={handleSaveRecord}
                 onDeleteRecord={handleDeleteRecord}
+                penyulangList={penyulangMaster}
+                sectionList={sectionMaster}
                 isReadOnly={isReadOnly}
               />
             )}
@@ -1589,6 +1630,25 @@ export default function App() {
                 onDeleteRecord={handleDeleteRecord}
                 penyulangList={penyulangMaster}
                 sectionList={sectionMaster}
+                isReadOnly={isReadOnly}
+              />
+            )}
+
+            {activeTab === 'health_index' && (
+              <HealthIndexView
+                records={records}
+                isLight={isLight}
+                penyulangList={penyulangMaster}
+                isReadOnly={isReadOnly}
+                onSaveRecord={(recordData) => handleSaveRecord(recordData as ROWRecord)}
+                onDeleteRecord={handleDeleteRecord}
+              />
+            )}
+
+            {activeTab === 'gangguan_pangkal' && (
+              <GangguanPangkalView
+                isLight={isLight}
+                penyulangList={penyulangMaster}
                 isReadOnly={isReadOnly}
               />
             )}

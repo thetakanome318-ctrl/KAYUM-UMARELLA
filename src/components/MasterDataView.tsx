@@ -12,6 +12,17 @@ import { Plus, Trash2, Save, Search, Database, Layers, Edit, Users, FileText, Fi
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+const GI_DEFAULT_LIST = [
+  'GI PASSO',
+  'GIS PASSO',
+  'GI SIRIMAU',
+  'GI POKA',
+  'GI WAYAME',
+  'GI AMBON',
+  'PLTD HATIVE KECIL',
+  'PLTD POKA'
+];
+
 interface MasterDataViewProps {
   isLight: boolean;
   isReadOnly?: boolean;
@@ -25,7 +36,19 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ isLight, isReadO
   const [searchQueryPenyulang, setSearchQueryPenyulang] = useState('');
   const [isAddingPenyulang, setIsAddingPenyulang] = useState(false);
   const [editingPenyulang, setEditingPenyulang] = useState<Penyulang | null>(null);
-  const [newPenyulang, setNewPenyulang] = useState({ nama: '', kode: '', panjangJaringan: 0 });
+  const [newPenyulang, setNewPenyulang] = useState<{
+    nama: string;
+    kode: string;
+    panjangJaringan: number;
+    statusPenyulang: 'Utama' | 'Percabangan';
+    namaGI: string;
+  }>({
+    nama: '',
+    kode: '',
+    panjangJaringan: 0,
+    statusPenyulang: 'Utama',
+    namaGI: 'GI PASSO',
+  });
 
   // Master Section State
   const [sectionList, setSectionList] = useState<MasterSection[]>([]);
@@ -44,8 +67,8 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ isLight, isReadO
     const lines = [
       'sep=;',
       `"MASTER DATA PENYULANG ULP BAGUALA"`,
-      `"Nama Penyulang"${DELIM}"Kode / ID"${DELIM}"Panjang Jaringan (KMS)"`,
-      ...filteredPenyulang.map(p => `"${p.nama}";"${p.kode || '-'}";"${p.panjangJaringan || 0}"`)
+      `"Nama GI"${DELIM}"Nama Penyulang"${DELIM}"Status Penyulang"${DELIM}"Kode / ID"${DELIM}"Panjang Jaringan (KMS)"`,
+      ...filteredPenyulang.map(p => `"${p.namaGI || 'GI PASSO'}";"${p.nama}";"${p.statusPenyulang || 'Utama'}";"${p.kode || '-'}";"${p.panjangJaringan || 0}"`)
     ];
     const blob = new Blob(["\uFEFF" + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -69,10 +92,17 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ isLight, isReadO
     doc.setFont('helvetica', 'normal');
     doc.text(`Dicetak: ${new Date().toLocaleString('id-ID')} | Total: ${filteredPenyulang.length} Penyulang`, 14, 18);
 
-    const rows = filteredPenyulang.map((p, idx) => [idx + 1, p.nama, p.kode || '-', `${p.panjangJaringan || 0} KMS`]);
+    const rows = filteredPenyulang.map((p, idx) => [
+      idx + 1, 
+      p.namaGI || 'GI PASSO',
+      p.nama, 
+      p.statusPenyulang || 'Utama',
+      p.kode || '-', 
+      `${p.panjangJaringan || 0} KMS`
+    ]);
     autoTable(doc, {
       startY: 32,
-      head: [['No', 'Nama Penyulang', 'Kode', 'Panjang Jaringan']],
+      head: [['No', 'Nama GI', 'Nama Penyulang', 'Status', 'Kode', 'Panjang Jaringan']],
       body: rows,
       theme: 'grid',
       headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' }
@@ -153,7 +183,7 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ isLight, isReadO
       ...data,
       createdAt: editingPenyulang ? editingPenyulang.createdAt : new Date().toISOString()
     });
-    setNewPenyulang({ nama: '', kode: '', panjangJaringan: 0 });
+    setNewPenyulang({ nama: '', kode: '', panjangJaringan: 0, statusPenyulang: 'Utama', namaGI: 'GI PASSO' });
     setIsAddingPenyulang(false);
     setEditingPenyulang(null);
   };
@@ -257,7 +287,7 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ isLight, isReadO
                   <button
                     onClick={() => {
                       setEditingPenyulang(null);
-                      setNewPenyulang({ nama: '', kode: '', panjangJaringan: 0 });
+                      setNewPenyulang({ nama: '', kode: '', panjangJaringan: 0, statusPenyulang: 'Utama', namaGI: 'GI PASSO' });
                       setIsAddingPenyulang(true);
                     }}
                     className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center space-x-2 cursor-pointer"
@@ -297,7 +327,9 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ isLight, isReadO
               <table className="w-full text-left">
                 <thead>
                   <tr className={isLight ? 'bg-slate-50 text-slate-500' : 'bg-white/5 text-slate-400'}>
+                    <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider">Nama GI</th>
                     <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider">Nama Penyulang</th>
+                    <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-center">Status</th>
                     <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-center">Kode / ID</th>
                     <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-center">Panjang Jaringan</th>
                     <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-right">Aksi</th>
@@ -306,8 +338,20 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ isLight, isReadO
                 <tbody className="divide-y divide-slate-800/30">
                   {filteredPenyulang.map((p) => (
                     <tr key={p.id} className="group hover:bg-indigo-500/5 transition-colors">
+                      <td className="px-6 py-4 font-extrabold text-amber-500">
+                        {p.namaGI || 'GI PASSO'}
+                      </td>
                       <td className="px-6 py-4">
-                        <div className="font-bold text-sm">{p.nama}</div>
+                        <div className="font-bold text-sm text-blue-500">{p.nama}</div>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black border ${
+                          (p.statusPenyulang || 'Utama') === 'Utama'
+                            ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                            : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                        }`}>
+                          {p.statusPenyulang || 'Utama'}
+                        </span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className={`px-2 py-1 rounded text-[10px] font-bold ${
@@ -326,7 +370,13 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ isLight, isReadO
                               <button 
                                 onClick={() => {
                                   setEditingPenyulang(p);
-                                  setNewPenyulang({ nama: p.nama, kode: p.kode || '', panjangJaringan: p.panjangJaringan || 0 });
+                                  setNewPenyulang({ 
+                                    nama: p.nama, 
+                                    kode: p.kode || '', 
+                                    panjangJaringan: p.panjangJaringan || 0,
+                                    statusPenyulang: p.statusPenyulang || 'Utama',
+                                    namaGI: p.namaGI || 'GI PASSO'
+                                  });
                                   setIsAddingPenyulang(true);
                                 }}
                                 className="p-2 text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors"
@@ -526,6 +576,24 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ isLight, isReadO
             </h3>
             <div className="space-y-4">
               <div>
+                <label className="block text-xs font-bold mb-1 text-slate-500 uppercase">Nama Gardu Induk (GI)</label>
+                <input
+                  type="text"
+                  list="gi_list_master"
+                  value={newPenyulang.namaGI}
+                  onChange={(e) => setNewPenyulang({ ...newPenyulang, namaGI: e.target.value.toUpperCase() })}
+                  placeholder="Contoh: GI PASSO"
+                  className={`w-full px-4 py-2 rounded-xl border text-sm font-medium ${
+                    isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800 border-slate-700'
+                  }`}
+                />
+                <datalist id="gi_list_master">
+                  {GI_DEFAULT_LIST.map(gi => (
+                    <option key={gi} value={gi} />
+                  ))}
+                </datalist>
+              </div>
+              <div>
                 <label className="block text-xs font-bold mb-1 text-slate-500 uppercase">Nama Penyulang</label>
                 <input
                   autoFocus
@@ -537,6 +605,19 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ isLight, isReadO
                     isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800 border-slate-700'
                   }`}
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-bold mb-1 text-slate-500 uppercase">Status Penyulang</label>
+                <select
+                  value={newPenyulang.statusPenyulang}
+                  onChange={(e) => setNewPenyulang({ ...newPenyulang, statusPenyulang: e.target.value as 'Utama' | 'Percabangan' })}
+                  className={`w-full px-4 py-2 rounded-xl border text-sm font-medium ${
+                    isLight ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-slate-800 border-slate-700 text-white'
+                  }`}
+                >
+                  <option value="Utama">Utama</option>
+                  <option value="Percabangan">Percabangan</option>
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-bold mb-1 text-slate-500 uppercase">Kode / ID</label>

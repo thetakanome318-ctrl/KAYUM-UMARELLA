@@ -133,6 +133,8 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
         return 'bg-teal-500/10 text-teal-400 border-teal-500/30';
       case 'Team Leader':
         return 'bg-blue-500/10 text-blue-400 border-blue-500/30';
+      case 'Tim Teknik':
+        return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
       default:
         return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
     }
@@ -298,6 +300,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                   >
                     <option value="Operator">Operator (Input &amp; Edit Data)</option>
                     <option value="Petugas Lapangan">Petugas Lapangan (Input &amp; Form)</option>
+                    <option value="Tim Teknik">Tim Teknik (Input &amp; Eksekusi Teknik)</option>
                     <option value="Team Leader">Team Leader (Akses Monitoring - Read Only)</option>
                     <option value="Manager">Manager (Status Monitoring - Read Only)</option>
                     <option value="Koordinator">Koordinator (Status Monitoring - Read Only)</option>

@@ -1,4 +1,20 @@
-export type UserRole = 'Admin System' | 'Team Leader' | 'Operator' | 'Petugas Lapangan' | 'Manager' | 'Koordinator';
+export type UserRole = 'Admin System' | 'Team Leader' | 'Operator' | 'Petugas Lapangan' | 'Manager' | 'Koordinator' | 'Tim Teknik';
+
+export interface GangguanPangkalRecord {
+  id: string;
+  namaGI: string; // Nama Gardu Induk (GI)
+  namaPenyulang: string; // Nama Penyulang
+  statusPenyulang?: 'Utama' | 'Percabangan'; // Status Penyulang: Utama atau Percabangan
+  bulan: string; // e.g. '2026-08' or 'Agustus 2026'
+  tahun: number;
+  bulanKe: number;
+  jumlahGangguan: number; // Jumlah gangguan per bulan
+  kodePenyebab: string; // Kode penyebab (I-1 s/d I-4, E-1 s/d E-4)
+  keteranganPenyebab?: string;
+  tanggal?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 export interface UserAccount {
   id: string;
@@ -160,6 +176,8 @@ export interface Penyulang {
   nama: string;
   kode?: string;
   panjangJaringan?: number;
+  statusPenyulang?: 'Utama' | 'Percabangan';
+  namaGI?: string;
   createdAt?: string;
 }
 
@@ -183,4 +201,4 @@ export interface PenyulangTarget {
   updatedAt?: string;
 }
 
-export type ViewTab = 'dashboard' | 'timeline' | 'table' | 'charts' | 'calendar' | 'map' | 'master' | 'target_management' | 'inspection' | 'inspection_monitoring' | 'row_monitoring' | 'gangguan' | 'gardu' | 'saidi_saifi';
+export type ViewTab = 'dashboard' | 'timeline' | 'table' | 'charts' | 'calendar' | 'map' | 'master' | 'target_management' | 'inspection' | 'inspection_monitoring' | 'row_monitoring' | 'gangguan' | 'gardu' | 'saidi_saifi' | 'health_index' | 'gangguan_pangkal';

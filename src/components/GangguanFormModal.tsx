@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { ROWRecord, Penyulang, MasterSection } from '../types';
+import { KODE_PENYEBAB_OPTIONS } from './GangguanPangkalView';
 
 interface GangguanFormModalProps {
   isOpen: boolean;
@@ -150,13 +151,27 @@ export const GangguanFormModal: React.FC<GangguanFormModalProps> = ({
           </div>
 
           <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1">Gardu / Lokasi</label>
+            <input type="text" placeholder="Masukkan ID Gardu atau nama" value={formData.kodeGardu || ''} onChange={e => setFormData({...formData, kodeGardu: e.target.value})} className="w-full bg-slate-800 text-white p-2 rounded-lg border border-slate-700 text-xs" />
+          </div>
+
+          <div>
             <label className="block text-xs font-medium text-slate-300 mb-1">Lokasi</label>
             <input type="text" placeholder="Lokasi gangguan" value={formData.lokasi || ''} onChange={e => setFormData({...formData, lokasi: e.target.value})} className="w-full bg-slate-800 text-white p-2 rounded-lg border border-slate-700 text-xs" />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1">Kode Gangguan</label>
-            <input type="text" placeholder="Kode gangguan" value={formData.kodeGangguan || ''} onChange={e => setFormData({...formData, kodeGangguan: e.target.value})} className="w-full bg-slate-800 text-white p-2 rounded-lg border border-slate-700 text-xs" />
+            <select
+              value={formData.kodeGangguan || ''}
+              onChange={e => setFormData({...formData, kodeGangguan: e.target.value})}
+              className="w-full bg-slate-800 text-white p-2 rounded-lg border border-slate-700 text-xs"
+            >
+              <option value="">Pilih Kode Gangguan</option>
+              {KODE_PENYEBAB_OPTIONS.map(opt => (
+                <option key={opt.code} value={opt.code}>{opt.code} - {opt.name}</option>
+              ))}
+            </select>
           </div>
 
           <div>
