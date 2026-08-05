@@ -1,5 +1,5 @@
 import React from 'react';
-import plnWorkerBg from '../assets/images/pln_worker_bg_1785941893258.jpg';
+import plnWorkerBg from '../assets/images/pln_up3_ambon_bg_1785949750293.jpg';
 
 interface SpkluEvChargingBackgroundProps {
   isLight?: boolean;
@@ -13,8 +13,8 @@ export const SpkluEvChargingBackground: React.FC<SpkluEvChargingBackgroundProps>
         className="absolute inset-0 z-0 bg-cover bg-center transition-all duration-1000 scale-105"
         style={{ 
           backgroundImage: `url(${plnWorkerBg})`,
-          filter: 'blur(24px) brightness(0.65) contrast(1.1)',
-          opacity: isLight ? 0.12 : 0.22
+          filter: 'blur(8px) brightness(0.5) contrast(1.2)',
+          opacity: isLight ? 0.25 : 0.4
         }}
       />
 
