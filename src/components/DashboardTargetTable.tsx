@@ -97,12 +97,12 @@ export const DashboardTargetTable: React.FC<DashboardTargetTableProps> = ({
 
   return (
     <div className={`backdrop-blur-md rounded-2xl border shadow-xl overflow-hidden transition-all duration-300 ${
-      isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-900/90 border-slate-800 text-white'
+      isLight ? 'bg-white border-black text-black' : 'bg-black border-white/40 text-white'
     }`}>
-      <div className="p-6 border-b border-slate-800/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className={`p-6 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 ${isLight ? 'border-black' : 'border-white/20'}`}>
         <div>
           <h3 className="text-lg font-bold tracking-tight">Tabel Monitoring & Status Penyulang</h3>
-          <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+          <p className={`text-xs ${isLight ? 'text-black/60' : 'text-slate-400'}`}>
             Data rekapitulasi temuan dan rekap gangguan per penyulang
           </p>
         </div>
@@ -138,14 +138,14 @@ export const DashboardTargetTable: React.FC<DashboardTargetTableProps> = ({
       <div className="overflow-x-auto custom-scrollbar">
         <table className="w-full text-sm text-left border-collapse">
           <thead>
-            <tr className={`border-b ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800/50 border-slate-800'}`}>
-              <th className="px-6 py-4 font-bold cursor-pointer hover:text-indigo-400" onClick={() => requestSort('nama')}>
+            <tr className={`border-b ${isLight ? 'bg-slate-100 border-black' : 'bg-black border-white/20'}`}>
+              <th className={`px-6 py-4 font-bold cursor-pointer ${isLight ? 'text-black' : 'text-white'} hover:text-amber-500`} onClick={() => requestSort('nama')}>
                 <div className="flex items-center space-x-2">
                    <span>Penyulang</span>
                   <ArrowUpDown className="w-3 h-3" />
                 </div>
               </th>
-              <th className="px-6 py-4 font-bold text-center cursor-pointer hover:text-indigo-400" onClick={() => requestSort('count')}>
+              <th className={`px-6 py-4 font-bold text-center cursor-pointer ${isLight ? 'text-black' : 'text-white'} hover:text-amber-500`} onClick={() => requestSort('count')}>
                 <div className="flex items-center justify-center space-x-2">
                   <span>Jumlah Gangguan</span>
                   <ArrowUpDown className="w-3 h-3" />

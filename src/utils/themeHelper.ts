@@ -60,11 +60,11 @@ export const themeStyles = {
   divider: (isLight: boolean) => getThemeClass(isLight, 'border-slate-100', 'border-slate-800/80'),
   
   // Chart specifics
-  chartGrid: (isLight: boolean) => getThemeClass(isLight, '#e2e8f0', '#334155'),
-  chartText: (isLight: boolean) => getThemeClass(isLight, '#64748b', '#e2e8f0'),
-  chartAxis: (isLight: boolean) => getThemeClass(isLight, '#cbd5e1', '#94a3b8'),
-  chartTooltipBg: (isLight: boolean) => getThemeClass(isLight, '#ffffff', '#0f172a'),
-  chartTooltipBorder: (isLight: boolean) => getThemeClass(isLight, '#cbd5e1', '#334155'),
-  chartTooltipTextColor: (isLight: boolean) => getThemeClass(isLight, '#1e293b', '#f8fafc'),
-  chartCellStroke: (isLight: boolean) => getThemeClass(isLight, '#ffffff', '#0f172a'),
+  chartGrid: (isLight: boolean) => getThemeClass(isLight, '#000000', '#FFFFFF'),
+  chartText: (isLight: boolean) => getThemeClass(isLight, '#000000', '#FFFFFF'),
+  chartAxis: (isLight: boolean) => getThemeClass(isLight, '#000000', '#FFFFFF'),
+  chartTooltipBg: (isLight: boolean) => getThemeClass(isLight, '#ffffff', '#000000'),
+  chartTooltipBorder: (isLight: boolean) => getThemeClass(isLight, '#000000', '#ffffff'),
+  chartTooltipTextColor: (isLight: boolean) => getThemeClass(isLight, '#000000', '#ffffff'),
+  chartCellStroke: (isLight: boolean) => getThemeClass(isLight, '#ffffff', '#000000'),
 };

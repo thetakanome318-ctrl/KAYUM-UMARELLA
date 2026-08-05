@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { motion } from 'motion/react';
 import { ROWRecord, PemeliharaanRecord, Penyulang } from '../types';
 import { 
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
@@ -242,21 +243,26 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
   }, [pemeliharaanRecords]);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="space-y-8"
+    >
       
       {/* SECTION HEADER SUMMARY METRICS (SAIDI SAIFI) */}
-      <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-slate-700/50">
+      <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/20">
         <img
           src={powerLinesBg}
           alt="Latar Belakang SAIDI SAIFI"
           className="absolute inset-0 w-full h-full object-cover object-center scale-105 filter brightness-[0.4] contrast-125"
           referrerPolicy="no-referrer"
         />
-        <div className={`absolute inset-0 ${isLight ? 'bg-white/70' : 'bg-slate-950/70'}`} />
+        <div className={`absolute inset-0 ${isLight ? 'bg-white/40' : 'bg-black/60'}`} />
         
         <div className="relative p-6 z-10">
           <div className="flex items-center justify-between mb-5">
-             <span className={`text-sm font-black uppercase tracking-wider flex items-center space-x-2 ${isLight ? 'text-slate-800' : 'text-white'}`}>
+             <span className={`text-sm font-black uppercase tracking-wider flex items-center space-x-2 ${isLight ? 'text-black' : 'text-white'}`}>
                <Zap className="w-5 h-5 text-amber-500" />
                <span>Monitoring Keandalan</span>
              </span>
@@ -268,61 +274,70 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             
             {/* CARD 1: SAIDI */}
-            <div className={`p-5 rounded-2xl border transition-all duration-300 ${
-              isLight 
-                ? 'bg-white/95 backdrop-blur-md border-amber-200 shadow-sm hover:shadow-md' 
-                : 'bg-slate-900/90 backdrop-blur-md border-amber-500/30 hover:border-amber-500/50 shadow-xl'
-            }`}>
+            <motion.div 
+              whileHover={{ scale: 1.02, y: -4 }}
+              className={`p-5 rounded-2xl border transition-all duration-300 ${
+                isLight 
+                  ? 'bg-white/95 backdrop-blur-md border-black shadow-sm hover:shadow-md' 
+                  : 'bg-black/80 backdrop-blur-md border-white/40 hover:border-white shadow-xl'
+              }`}
+            >
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">SAIDI</span>
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${isLight ? 'text-black/60' : 'text-white/60'}`}>SAIDI</span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">mnt/plg</span>
               </div>
               <div className="text-3xl font-black text-amber-400 truncate" title={saidiSaifiData.saidi}>
                 {saidiSaifiData.saidi}
               </div>
-              <div className="mt-3 pt-3 border-t border-amber-500/10 text-[11px] font-medium text-slate-400 flex items-center justify-between">
+              <div className={`mt-3 pt-3 border-t border-amber-500/10 text-[11px] font-medium flex items-center justify-between ${isLight ? 'text-black/70' : 'text-white/70'}`}>
                 <span>Total Gangguan:</span>
                 <span className="font-bold text-amber-400">{saidiSaifiData.totalKejadian} kali</span>
               </div>
-            </div>
+            </motion.div>
 
             {/* CARD 2: SAIFI */}
-            <div className={`p-5 rounded-2xl border transition-all duration-300 ${
-              isLight 
-                ? 'bg-white/95 backdrop-blur-md border-orange-200 shadow-sm hover:shadow-md' 
-                : 'bg-slate-900/90 backdrop-blur-md border-orange-500/30 hover:border-orange-500/50 shadow-xl'
-            }`}>
+            <motion.div 
+              whileHover={{ scale: 1.02, y: -4 }}
+              className={`p-5 rounded-2xl border transition-all duration-300 ${
+                isLight 
+                  ? 'bg-white/95 backdrop-blur-md border-black shadow-sm hover:shadow-md' 
+                  : 'bg-black/80 backdrop-blur-md border-white/40 hover:border-white shadow-xl'
+              }`}
+            >
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">SAIFI</span>
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${isLight ? 'text-black/60' : 'text-white/60'}`}>SAIFI</span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-orange-500/10 text-orange-500 border border-orange-500/20">kali/plg</span>
               </div>
               <div className="text-3xl font-black text-orange-400 truncate" title={saidiSaifiData.saifi}>
                 {saidiSaifiData.saifi}
               </div>
-              <div className="mt-3 pt-3 border-t border-orange-500/10 text-[11px] font-medium text-slate-400 flex items-center justify-between">
+              <div className={`mt-3 pt-3 border-t border-orange-500/10 text-[11px] font-medium flex items-center justify-between ${isLight ? 'text-black/70' : 'text-white/70'}`}>
                 <span>Pelanggan Padam:</span>
                 <span className="font-bold text-orange-400">{saidiSaifiData.totalPelangganPadam.toLocaleString('id-ID')}</span>
               </div>
-            </div>
+            </motion.div>
 
             {/* CARD 3: ENS */}
-            <div className={`p-5 rounded-2xl border transition-all duration-300 ${
-              isLight 
-                ? 'bg-white/95 backdrop-blur-md border-rose-200 shadow-sm hover:shadow-md' 
-                : 'bg-slate-900/90 backdrop-blur-md border-rose-500/30 hover:border-rose-500/50 shadow-xl'
-            }`}>
+            <motion.div 
+              whileHover={{ scale: 1.02, y: -4 }}
+              className={`p-5 rounded-2xl border transition-all duration-300 ${
+                isLight 
+                  ? 'bg-white/95 backdrop-blur-md border-black shadow-sm hover:shadow-md' 
+                  : 'bg-black/80 backdrop-blur-md border-white/40 hover:border-white shadow-xl'
+              }`}
+            >
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">ENS</span>
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${isLight ? 'text-black/60' : 'text-white/60'}`}>ENS</span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/10 text-rose-500 border border-rose-500/20">kWh</span>
               </div>
               <div className="text-3xl font-black text-rose-400 truncate" title={saidiSaifiData.totalEns.toString()}>
                 {saidiSaifiData.totalEns.toLocaleString('id-ID')}
               </div>
-              <div className="mt-3 pt-3 border-t border-rose-500/10 text-[11px] font-medium text-slate-400 flex items-center justify-between">
+              <div className={`mt-3 pt-3 border-t border-rose-500/10 text-[11px] font-medium flex items-center justify-between ${isLight ? 'text-black/70' : 'text-white/70'}`}>
                 <span>Kerugian:</span>
                 <span className="font-bold text-rose-400">Rp {(saidiSaifiData.totalEns * 1352).toLocaleString('id-ID')}</span>
               </div>
-            </div>
+            </motion.div>
 
           </div>
         </div>
@@ -341,8 +356,8 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Bar Chart Gangguan per Penyulang */}
             <div>
-              <div className="text-xs font-bold text-slate-400 mb-3 flex items-center space-x-1">
-                <BarChart3 className="w-4 h-4 text-amber-400" />
+              <div className={`text-xs font-bold mb-3 flex items-center space-x-1 ${isLight ? 'text-black' : 'text-white'}`}>
+                <BarChart3 className={`w-4 h-4 ${isLight ? 'text-black' : 'text-amber-400'}`} />
                 <span>Gangguan & Durasi Padam per Penyulang</span>
               </div>
               <div className="h-64 w-full">
@@ -356,7 +371,7 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
                     <XAxis dataKey="name" stroke={themeStyles.chartText(isLight)} fontSize={10} />
                     <YAxis stroke={themeStyles.chartText(isLight)} fontSize={10} />
                     <Tooltip contentStyle={{ backgroundColor: themeStyles.chartTooltipBg(isLight), borderColor: themeStyles.chartTooltipBorder(isLight), borderRadius: '12px', color: themeStyles.chartTooltipTextColor(isLight) }} />
-                    <Legend wrapperStyle={{ fontSize: '11px', color: isLight ? '#475569' : '#cbd5e1' }} />
+                    <Legend wrapperStyle={{ fontSize: '11px', color: isLight ? '#000000' : '#FFFFFF' }} />
                     <Bar dataKey="JumlahGangguan" fill="#EF4444" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="JamPadam" fill="#F59E0B" radius={[4, 4, 0, 0]} />
                   </BarChart>
@@ -366,8 +381,8 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
 
             {/* Pie Chart Penyebab Gangguan */}
             <div>
-              <div className="text-xs font-bold text-slate-400 mb-3 flex items-center space-x-1">
-                <PieIcon className="w-4 h-4 text-amber-400" />
+              <div className={`text-xs font-bold mb-3 flex items-center space-x-1 ${isLight ? 'text-black' : 'text-white'}`}>
+                <PieIcon className={`w-4 h-4 ${isLight ? 'text-black' : 'text-amber-400'}`} />
                 <span>Klasifikasi Penyebab Gangguan</span>
               </div>
               <div className="h-64 w-full">
@@ -425,6 +440,6 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
         isLight={isLight} 
       />
 
-    </div>
+    </motion.div>
   );
 };

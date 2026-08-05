@@ -118,8 +118,8 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className={`border-b shadow-2xl sticky top-0 z-[100] transition-all duration-300 ${
       isLight 
-        ? "bg-white/95 backdrop-blur-md text-slate-800 border-slate-200/80" 
-        : "bg-slate-950/95 backdrop-blur-md text-white border-slate-800/80"
+        ? "bg-white/95 backdrop-blur-md text-black border-black" 
+        : "bg-slate-950/95 backdrop-blur-md text-white border-white/40"
     }`}>
       {/* Background Image Pekerjaan Listrik di Tiang Listrik */}
       <div className={`absolute inset-0 z-0 overflow-hidden pointer-events-none transition-all duration-300 ${
@@ -170,7 +170,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className={`text-lg sm:text-xl font-black tracking-tight flex items-center gap-2 transition-all ${
-                  isLight ? "text-slate-900" : "text-white"
+                  isLight ? "text-black" : "text-white"
                 }`}>
                   <span className="uppercase text-amber-500 font-extrabold tracking-wide">PERANG PADAM BAGUALA</span>
                   <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-500 dark:text-amber-400 border border-amber-500/30 font-mono font-bold shadow-xs">
@@ -181,7 +181,7 @@ export const Header: React.FC<HeaderProps> = ({
 
               <div className="flex flex-col text-xs mt-0.5 transition-all">
                 <span className={`font-semibold flex items-center gap-1.5 ${
-                  isLight ? "text-slate-600" : "text-slate-300"
+                  isLight ? "text-black/80" : "text-slate-300"
                 }`}>
                   Monitoring Gangguan dan Pemeliharaan — ULP Baguala
                 </span>

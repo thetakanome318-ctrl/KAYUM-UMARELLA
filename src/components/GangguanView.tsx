@@ -104,7 +104,7 @@ export const GangguanView: React.FC<GangguanViewProps> = ({
 
       {/* 2. SEARCH & ACTION CONTROLS */}
       <div className={`p-4 rounded-2xl border flex flex-wrap gap-4 items-center justify-between ${
-        isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#0D1322] border-slate-800/80 shadow-xl'
+        isLight ? 'bg-white border-black shadow-sm' : 'bg-black border-white/40 shadow-xl'
       }`}>
         <div className="flex-1 min-w-[240px] relative">
           <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400"/>
@@ -233,12 +233,12 @@ export const GangguanView: React.FC<GangguanViewProps> = ({
         </div>
 
         <div className={`rounded-2xl border shadow-xl overflow-hidden ${
-          isLight ? 'bg-white border-slate-200' : 'bg-[#0D1322] border-slate-800/80'
+          isLight ? 'bg-white border-black' : 'bg-black border-white/40'
         }`}>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className={`${isLight ? 'bg-slate-100 text-slate-700' : 'bg-slate-950 text-slate-300'} font-bold border-b border-slate-800`}>
+                <tr className={`${isLight ? 'bg-slate-100 text-black' : 'bg-black text-white'} font-bold border-b border-black`}>
                   <th className="p-3 whitespace-nowrap">Tanggal</th>
                   <th className="p-3 whitespace-nowrap">Penyulang</th>
                   <th className="p-3 whitespace-nowrap">Section</th>

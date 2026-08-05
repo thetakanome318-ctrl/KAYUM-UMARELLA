@@ -59,8 +59,8 @@ export const HorizontalNav: React.FC<HorizontalNavProps> = ({
   return (
     <div ref={containerRef} className={`w-full rounded-2xl border p-3 backdrop-blur-md shadow-xl transition-all duration-300 relative z-[60] ${
       isLight 
-        ? 'bg-white/95 border-slate-200 text-slate-800 shadow-slate-200/50' 
-        : 'bg-[#0B0F19]/95 border-slate-800 text-white shadow-black/80'
+        ? 'bg-white/95 border-black text-black shadow-slate-200/50' 
+        : 'bg-[#0B0F19]/95 border-white/40 text-white shadow-black/80'
     }`}>
       {/* Multi-line Wrapped Navigation Container (NO Horizontal Scrolling) */}
       <div className="flex flex-wrap items-center justify-between gap-2.5">

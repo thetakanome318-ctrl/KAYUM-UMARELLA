@@ -1220,7 +1220,7 @@ export default function App() {
   return (
     <div 
       className={`min-h-screen font-sans flex flex-col relative transition-colors duration-300 ${
-        isLight ? "text-slate-800 bg-slate-50" : "text-white bg-slate-950"
+        isLight ? "text-black bg-white" : "text-white bg-black"
       }`}
     >
       {/* Animated SPKLU Electric Vehicle Charging Station Background */}

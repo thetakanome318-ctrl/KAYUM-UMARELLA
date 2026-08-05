@@ -119,8 +119,8 @@ export const DataTable: React.FC<DataTableProps> = ({
     return (
       <div className={`rounded-xl border p-12 text-center transition-all ${
         isLight 
-          ? 'bg-white border-slate-200 text-slate-800 shadow-xs' 
-          : 'bg-slate-900 border-slate-800 text-slate-300 shadow-lg'
+          ? 'bg-white border-black text-black shadow-xs' 
+          : 'bg-black border-white/40 text-white shadow-lg'
       }`}>
         <p className="text-sm font-semibold">Tidak ada data temuan ROW yang cocok.</p>
         <p className="text-xs text-slate-400 mt-1">Gunakan tombol "Tambah Data Form" untuk menambahkan data baru.</p>
@@ -131,12 +131,12 @@ export const DataTable: React.FC<DataTableProps> = ({
   return (
     <div className={`rounded-xl border shadow-sm overflow-hidden transition-all duration-300 ${
       isLight 
-        ? 'bg-white border-slate-200 text-slate-800 shadow-xs' 
-        : 'bg-slate-900 border-slate-800 text-slate-300 shadow-lg'
+        ? 'bg-white border-black text-black shadow-xs' 
+        : 'bg-black border-white/40 text-white shadow-lg'
     }`}>
       {/* Table Header Bar */}
       <div className={`px-4 py-2.5 border-b flex items-center justify-between transition-colors duration-300 ${
-        isLight ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-slate-950 border-slate-800 text-slate-300'
+        isLight ? 'bg-white border-black text-black' : 'bg-black border-white/40 text-white'
       }`}>
         <span className="text-xs font-bold">
           Menampilkan <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">{records.length} Baris</span> Data Section ROW
@@ -158,7 +158,7 @@ export const DataTable: React.FC<DataTableProps> = ({
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className={`text-[11px] font-bold uppercase tracking-wider transition-colors duration-300 ${
-              isLight ? 'bg-slate-100 text-slate-700 border-b border-slate-200' : 'bg-slate-950 text-slate-200'
+              isLight ? 'bg-slate-100 text-black border-b border-black' : 'bg-black text-white'
             }`}>
               <th className="py-3 px-3">Bulan</th>
               <th className="py-3 px-3">Penyulang</th>
