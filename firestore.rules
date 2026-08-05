@@ -54,5 +54,23 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true;
     }
+
+    // Gangguan Pangkal Collection
+    match /gangguanPangkal/{recordId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Pemeliharaan Records Collection
+    match /pemeliharaanRecords/{recordId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Activity Logs Collection
+    match /activityLogs/{logId} {
+      allow read: if true;
+      allow write: if true;
+    }
   }
 }

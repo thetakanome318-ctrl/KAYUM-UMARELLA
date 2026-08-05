@@ -1,7 +1,14 @@
 import React, { useMemo } from 'react';
 import { ROWRecord, Penyulang } from '../types';
 import { getHealthStatus } from './HealthIndexView';
-import { HeartPulse, ArrowRight } from 'lucide-react';
+import { 
+  HeartPulse, 
+  ArrowRight, 
+  CheckCircle2, 
+  ShieldCheck, 
+  AlertTriangle, 
+  Flame 
+} from 'lucide-react';
 
 interface HealthIndexSummaryCardProps {
   records: ROWRecord[];
@@ -164,60 +171,68 @@ export const HealthIndexSummaryCard: React.FC<HealthIndexSummaryCardProps> = ({
 
       {/* Grid Status Counts */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-        <div className={`p-3 rounded-xl border flex items-center justify-between ${
+        <div className={`p-3 rounded-xl border flex items-center justify-between transition-all hover:scale-[1.02] ${
           isLight ? 'bg-emerald-50/60 border-emerald-200' : 'bg-emerald-950/20 border-emerald-500/30'
         }`}>
           <div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-              Sempurna (0)
+            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+              <span>Sempurna (0)</span>
             </div>
             <div className="text-lg font-black text-emerald-500 mt-0.5">
               {healthStats.sempurna} <span className="text-[10px] font-normal text-slate-400">Penyulang</span>
             </div>
           </div>
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
+          <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 shrink-0">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
         </div>
 
-        <div className={`p-3 rounded-xl border flex items-center justify-between ${
+        <div className={`p-3 rounded-xl border flex items-center justify-between transition-all hover:scale-[1.02] ${
           isLight ? 'bg-blue-50/60 border-blue-200' : 'bg-blue-950/20 border-blue-500/30'
         }`}>
           <div>
-            <div className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-              Sehat (1-3)
+            <div className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1">
+              <span>Sehat (1-3)</span>
             </div>
             <div className="text-lg font-black text-blue-500 mt-0.5">
               {healthStats.sehat} <span className="text-[10px] font-normal text-slate-400">Penyulang</span>
             </div>
           </div>
-          <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50" />
+          <div className="p-2 rounded-xl bg-blue-500/15 text-blue-500 border border-blue-500/30 shrink-0">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
         </div>
 
-        <div className={`p-3 rounded-xl border flex items-center justify-between ${
+        <div className={`p-3 rounded-xl border flex items-center justify-between transition-all hover:scale-[1.02] ${
           isLight ? 'bg-amber-50/60 border-amber-200' : 'bg-amber-950/20 border-amber-500/30'
         }`}>
           <div>
-            <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
-              Sakit (4-6)
+            <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1">
+              <span>Sakit (4-6)</span>
             </div>
             <div className="text-lg font-black text-amber-500 mt-0.5">
               {healthStats.sakit} <span className="text-[10px] font-normal text-slate-400">Penyulang</span>
             </div>
           </div>
-          <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50" />
+          <div className="p-2 rounded-xl bg-amber-500/15 text-amber-500 border border-amber-500/30 shrink-0">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
         </div>
 
-        <div className={`p-3 rounded-xl border flex items-center justify-between ${
+        <div className={`p-3 rounded-xl border flex items-center justify-between transition-all hover:scale-[1.02] ${
           isLight ? 'bg-rose-50/60 border-rose-200' : 'bg-rose-950/20 border-rose-500/30'
         }`}>
           <div>
-            <div className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
-              Kronis (≥7)
+            <div className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1">
+              <span>Kronis (≥7)</span>
             </div>
             <div className="text-lg font-black text-rose-500 mt-0.5">
               {healthStats.kronis} <span className="text-[10px] font-normal text-slate-400">Penyulang</span>
             </div>
           </div>
-          <div className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm shadow-rose-500/50" />
+          <div className="p-2 rounded-xl bg-rose-500/15 text-rose-500 border border-rose-500/30 shrink-0">
+            <Flame className="w-5 h-5" />
+          </div>
         </div>
       </div>
     </div>

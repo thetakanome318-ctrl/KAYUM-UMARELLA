@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getThemeContrastClasses } from '../utils/themeHelper';
 
 interface RowMonitoringViewProps {
   records: ROWRecord[];
@@ -30,7 +31,8 @@ export const RowMonitoringView: React.FC<RowMonitoringViewProps> = ({
   records, 
   isLight,
   penyulangList = []
-}) => {
+  }) => {
+  const tc = getThemeContrastClasses(isLight);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPenyulang, setSelectedPenyulang] = useState<string>('ALL');
   const [selectedBulan, setSelectedBulan] = useState<string>('ALL');
@@ -221,16 +223,14 @@ export const RowMonitoringView: React.FC<RowMonitoringViewProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Title block with action buttons */}
-      <div className={`p-6 rounded-2xl border shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-        isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-900/90 border-slate-800 text-white'
-      }`}>
+      <div className={`p-6 rounded-2xl border shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 ${tc.cardBg}`}>
         <div className="flex items-center space-x-3.5">
           <div className="p-3 bg-emerald-500/20 rounded-2xl text-emerald-500 border border-emerald-500/30 animate-pulse">
             <TreePine className="w-7 h-7" />
           </div>
           <div>
             <h2 className="text-xl font-black tracking-tight">Monitoring Hasil & Realisasi ROW</h2>
-            <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            <p className={`text-xs ${tc.textMuted}`}>
               Rekapitulasi target bulanan, realisasi pangkasan gawang, serta pemeliharaan ruang bebas (ROW) pohon
             </p>
           </div>
@@ -257,7 +257,7 @@ export const RowMonitoringView: React.FC<RowMonitoringViewProps> = ({
       {/* Main Stats Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: KMS Progress */}
-        <div className={`p-5 rounded-2xl border ${isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/80 border-slate-800 shadow-xl'}`}>
+        <div className={`p-5 rounded-2xl border ${tc.cardBg}`}>
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Progress KMS</span>
             <Ruler className="w-5 h-5 text-emerald-500" />
@@ -278,7 +278,7 @@ export const RowMonitoringView: React.FC<RowMonitoringViewProps> = ({
         </div>
 
         {/* Card 2: Realisasi Gawang */}
-        <div className={`p-5 rounded-2xl border ${isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/80 border-slate-800 shadow-xl'}`}>
+        <div className={`p-5 rounded-2xl border ${tc.cardBg}`}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Realisasi Gawang</span>
             <Layers className="w-5 h-5 text-indigo-500" />
@@ -288,7 +288,7 @@ export const RowMonitoringView: React.FC<RowMonitoringViewProps> = ({
         </div>
 
         {/* Card 3: Temuan Rutin */}
-        <div className={`p-5 rounded-2xl border ${isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/80 border-slate-800 shadow-xl'}`}>
+        <div className={`p-5 rounded-2xl border ${tc.cardBg}`}>
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pohon Rutin (Temuan)</span>
             <TreePine className="w-5 h-5 text-cyan-500" />
@@ -309,7 +309,7 @@ export const RowMonitoringView: React.FC<RowMonitoringViewProps> = ({
         </div>
 
         {/* Card 4: Luar Temuan */}
-        <div className={`p-5 rounded-2xl border ${isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/80 border-slate-800 shadow-xl'}`}>
+        <div className={`p-5 rounded-2xl border ${tc.cardBg}`}>
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pohon Luar Target</span>
             <CheckCircle2 className="w-5 h-5 text-purple-500" />
@@ -364,9 +364,7 @@ export const RowMonitoringView: React.FC<RowMonitoringViewProps> = ({
       </div>
 
       {/* Filter and Searching Header */}
-      <div className={`p-4 rounded-2xl border flex flex-col md:flex-row items-center gap-4 justify-between ${
-        isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/80 border-slate-800 shadow-xl'
-      }`}>
+      <div className={`p-4 rounded-2xl border flex flex-col md:flex-row items-center gap-4 justify-between ${tc.cardBg}`}>
         {/* Search */}
         <div className="relative w-full md:w-80">
           <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
@@ -375,9 +373,7 @@ export const RowMonitoringView: React.FC<RowMonitoringViewProps> = ({
             placeholder="Cari penyulang, section, catatan..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={`w-full pl-9 pr-4 py-2 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-              isLight ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-slate-950 border-slate-800 text-white'
-            }`}
+            className={`w-full pl-9 pr-4 py-2 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-emerald-500 ${tc.inputBg}`}
           />
         </div>
 
@@ -388,9 +384,7 @@ export const RowMonitoringView: React.FC<RowMonitoringViewProps> = ({
             <select
               value={selectedPenyulang}
               onChange={(e) => setSelectedPenyulang(e.target.value)}
-              className={`w-full sm:w-48 pl-3 pr-8 py-2 rounded-xl text-xs border appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer ${
-                isLight ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-slate-950 border-slate-800 text-white'
-              }`}
+              className={`w-full sm:w-48 pl-3 pr-8 py-2 rounded-xl text-xs border appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer ${tc.inputBg}`}
             >
               <option value="ALL">Semua Penyulang</option>
               {penyulangList.map(p => (
@@ -405,9 +399,7 @@ export const RowMonitoringView: React.FC<RowMonitoringViewProps> = ({
             <select
               value={selectedBulan}
               onChange={(e) => setSelectedBulan(e.target.value)}
-              className={`w-full sm:w-48 pl-3 pr-8 py-2 rounded-xl text-xs border appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer ${
-                isLight ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-slate-950 border-slate-800 text-white'
-              }`}
+              className={`w-full sm:w-48 pl-3 pr-8 py-2 rounded-xl text-xs border appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer ${tc.inputBg}`}
             >
               <option value="ALL">Semua Bulan / Periode</option>
               {uniqueMonths.map(m => (
@@ -420,14 +412,10 @@ export const RowMonitoringView: React.FC<RowMonitoringViewProps> = ({
       </div>
 
       {/* Main Data Table */}
-      <div className={`rounded-2xl border overflow-hidden shadow-xl ${
-        isLight ? 'bg-white border-slate-200' : 'bg-slate-900/90 border-slate-800'
-      }`}>
+      <div className={`rounded-2xl border overflow-hidden shadow-xl ${tc.cardBg}`}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className={`border-b font-bold uppercase tracking-wider ${
-              isLight ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-slate-950/80 text-slate-300 border-slate-800'
-            }`}>
+            <thead className={`border-b font-bold uppercase tracking-wider ${tc.tableHeaderBg}`}>
               <tr>
                 <th className="py-3 px-4">Bulan / Periode</th>
                 <th className="py-3 px-4">Penyulang</th>
@@ -458,7 +446,7 @@ export const RowMonitoringView: React.FC<RowMonitoringViewProps> = ({
                   const hasPohonBesar = r.jumlahPohonBesar !== undefined ? r.jumlahPohonBesar > 0 : r.pohonBesar;
 
                   return (
-                    <tr key={r.id} className={`transition-colors ${isLight ? 'hover:bg-slate-50/80' : 'hover:bg-slate-800/40'}`}>
+                    <tr key={r.id} className={`transition-colors ${tc.hoverBg}`}>
                       <td className="py-3 px-4 font-bold">{formatBulan(r.bulan)}</td>
                       <td className="py-3 px-4 font-semibold">{r.penyulang || '-'}</td>
                       <td className="py-3 px-4 font-mono font-bold text-emerald-500">{r.section}</td>

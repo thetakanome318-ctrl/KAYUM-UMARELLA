@@ -1,6 +1,6 @@
 {
-  "name": "SIGAP SISTEM INFORMASI GANGGUAN PENYULANG ROW POHON DAN INSPEKSI DAN PENGUKURAN GARDU DISTRIBUSI",
-  "description": "Aplikasi monitoring Perang Padam Baguala Support by the tukimen - pemangkasan ROW pohon penyulang listrik, target bulanan KMS, realisasi gawang, serta tren temuan.",
-  "requestFramePermissions": [],
+  "name": "PERANG PADAM BAGUALA - Monitoring Gangguan dan Pemeliharaan",
+  "description": "Aplikasi E-Monitoring Gangguan Penyulang, ROW Pohon, Inspeksi, dan Pemeliharaan APD PLN ULP Baguala",
+  "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

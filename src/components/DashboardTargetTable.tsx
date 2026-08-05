@@ -101,9 +101,9 @@ export const DashboardTargetTable: React.FC<DashboardTargetTableProps> = ({
     }`}>
       <div className="p-6 border-b border-slate-800/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h3 className="text-lg font-bold tracking-tight">Tabel Monitoring Realisasi & Target</h3>
+          <h3 className="text-lg font-bold tracking-tight">Tabel Monitoring & Status Penyulang</h3>
           <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-            Data rekapitulasi target harian dan rasio per penyulang
+            Data rekapitulasi temuan dan rekap gangguan per penyulang
           </p>
         </div>
         
@@ -159,44 +159,10 @@ export const DashboardTargetTable: React.FC<DashboardTargetTableProps> = ({
                 isLight ? 'hover:bg-slate-50' : 'hover:bg-white/5'
               }`}>
                 <td className="px-6 py-4">
-                  <div className="flex flex-col space-y-2">
-                    <div>
-                      <div className="font-bold text-sm">{item.nama}</div>
-                      <div className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
-                        ID: {penyulangMaster.find(p => p.nama === item.nama)?.kode || 'N/A'}
-                      </div>
-                    </div>
-                    
-                    {/* Detail Temuan */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1 border-t border-slate-800/10">
-                      <div className="flex flex-col">
-                        <span className="text-[9px] text-slate-500 uppercase font-semibold">Total Temuan</span>
-                        <span className={`text-xs font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>{item.totalTemuan} <span className="text-[9px] font-normal opacity-70">Pohon</span></span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[9px] text-emerald-500 uppercase font-semibold">Sudah Eksekusi</span>
-                        <span className="text-xs font-bold text-emerald-400">{item.totalRealisasiTemuan} <span className="text-[9px] font-normal opacity-70">Pohon</span></span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[9px] text-rose-500 uppercase font-semibold">Belum Eksekusi</span>
-                        <span className="text-xs font-bold text-rose-400">{item.totalTemuan - item.totalRealisasiTemuan} <span className="text-[9px] font-normal opacity-70">Pohon</span></span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[9px] text-indigo-500 uppercase font-semibold">Luar Temuan</span>
-                        <span className="text-xs font-bold text-indigo-400">{item.totalLuarTemuan} <span className="text-[9px] font-normal opacity-70">Pohon</span></span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[9px] text-amber-500 uppercase font-semibold">Butuh Padam</span>
-                        <span className="text-xs font-bold text-amber-400">{item.totalPerluPadam} <span className="text-[9px] font-normal opacity-70">Pohon</span></span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[9px] text-slate-400 uppercase font-semibold">Belum Izin</span>
-                        <span className="text-xs font-bold text-slate-300">{item.totalPerluIzin} <span className="text-[9px] font-normal opacity-70">Pohon</span></span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[9px] text-orange-500 uppercase font-semibold">Pohon Besar</span>
-                        <span className="text-xs font-bold text-orange-400">{item.totalPohonBesar} <span className="text-[9px] font-normal opacity-70">Pohon</span></span>
-                      </div>
+                  <div className="flex flex-col space-y-1">
+                    <div className="font-bold text-sm">{item.nama}</div>
+                    <div className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+                      ID: {penyulangMaster.find(p => p.nama === item.nama)?.kode || 'N/A'}
                     </div>
                   </div>
                 </td>

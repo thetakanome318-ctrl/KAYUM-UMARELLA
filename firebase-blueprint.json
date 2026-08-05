@@ -17,20 +17,7 @@
         "realisasiGawang": { "type": "number" },
         "jumlahTemuan": { "type": "number" },
         "realisasiTemuan": { "type": "number" },
-        "luarTemuan": { "type": "number" },
-        "realisasiLuarTemuan": { "type": "number" },
         "catatan": { "type": "string" },
-        "perluPadam": { "type": "boolean" },
-        "jumlahPerluPadam": { "type": "number" },
-        "tidakAdaIzin": { "type": "boolean" },
-        "jumlahTidakAdaIzin": { "type": "number" },
-        "pohonBesar": { "type": "boolean" },
-        "jumlahPohonBesar": { "type": "number" },
-        "latitude": { "type": "number" },
-        "longitude": { "type": "number" },
-        "lokasi": { "type": "string" },
-        "namaPohon": { "type": "string" },
-        "isMapFinding": { "type": "boolean" },
         "updatedAt": { "type": "string" }
       },
       "required": ["id", "section", "penyulang"]
@@ -61,6 +48,75 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "nama"]
+    },
+    "masterSection": {
+      "title": "Master Section Data",
+      "description": "Master list of sections for feeders.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "penyulangId": { "type": "string" },
+        "namaSection": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "namaSection"]
+    },
+    "gangguanPangkal": {
+      "title": "Gangguan Pangkal Record",
+      "description": "Records of substation feeder trip/outages (Gangguan Pangkal).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tanggal": { "type": "string" },
+        "penyulang": { "type": "string" },
+        "jamKeluar": { "type": "string" },
+        "jamMasuk": { "type": "string" },
+        "durasi": { "type": "string" },
+        "kodeGangguan": { "type": "string" },
+        "penyebab": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "penyulang"]
+    },
+    "pemeliharaanRecords": {
+      "title": "Pemeliharaan Record",
+      "description": "Records of feeder maintenance schedules and executions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tanggal": { "type": "string" },
+        "penyulang": { "type": "string" },
+        "jenisPemeliharaan": { "type": "string" },
+        "keterangan": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "penyulang"]
+    }
+  },
+  "firestore": {
+    "records": {
+      "schema": { "$ref": "#/entities/records" },
+      "description": "Collection of ROW monitoring records."
+    },
+    "monthlyTargets": {
+      "schema": { "$ref": "#/entities/monthlyTargets" },
+      "description": "Collection of monthly target items."
+    },
+    "penyulang": {
+      "schema": { "$ref": "#/entities/penyulang" },
+      "description": "Collection of feeder master data."
+    },
+    "masterSection": {
+      "schema": { "$ref": "#/entities/masterSection" },
+      "description": "Collection of section master data."
+    },
+    "gangguanPangkal": {
+      "schema": { "$ref": "#/entities/gangguanPangkal" },
+      "description": "Collection of substation feeder trip logs."
+    },
+    "pemeliharaanRecords": {
+      "schema": { "$ref": "#/entities/pemeliharaanRecords" },
+      "description": "Collection of feeder maintenance logs."
     }
   }
 }

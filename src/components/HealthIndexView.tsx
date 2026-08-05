@@ -238,12 +238,28 @@ export const HealthIndexView: React.FC<HealthIndexViewProps> = ({
       }
     });
 
-    // Convert map to array with health status
+    // Convert map to array with health status & affected sections
     let result = Array.from(penyulangMap.values()).map(item => {
       const health = getHealthStatus(item.gangguanCount);
+      
+      // Calculate sections that actually had gangguan
+      const secMap = new Map<string, number>();
+      item.gangguanList.forEach(r => {
+        if (r.section && r.section.trim()) {
+          const secName = r.section.trim();
+          secMap.set(secName, (secMap.get(secName) || 0) + 1);
+        }
+      });
+
+      const affectedSections = Array.from(secMap.entries()).map(([section, count]) => ({
+        section,
+        count
+      })).sort((a, b) => b.count - a.count);
+
       return {
         ...item,
         health,
+        affectedSections,
       };
     });
 
@@ -294,10 +310,13 @@ export const HealthIndexView: React.FC<HealthIndexViewProps> = ({
       'sep=;',
       `"MONITORING HEALTH INDEX PENYULANG"`,
       `"Periode: ${selectedMonth === 'ALL' ? 'Semua Bulan' : BULAN_NAMES[parseInt(selectedMonth) - 1]} ${selectedYear === 'ALL' ? 'Semua Tahun' : selectedYear}"`,
-      `"No"${DELIM}"Nama Penyulang"${DELIM}"Frekuensi Gangguan"${DELIM}"Health Index Status"`,
-      ...aggregatedPenyulangData.map((item, idx) => 
-        `"${idx + 1}"${DELIM}"${item.penyulangName}"${DELIM}"${item.gangguanCount}"${DELIM}"${item.health.status}"`
-      )
+      `"No"${DELIM}"Nama Penyulang"${DELIM}"Frekuensi Gangguan"${DELIM}"Health Index Status"${DELIM}"Section Terkena Gangguan"`,
+      ...aggregatedPenyulangData.map((item, idx) => {
+        const secStr = item.affectedSections.length > 0 
+          ? item.affectedSections.map(s => `${s.section} (${s.count}x)`).join(', ')
+          : 'Nihil Padam / Safe';
+        return `"${idx + 1}"${DELIM}"${item.penyulangName}"${DELIM}"${item.gangguanCount}"${DELIM}"${item.health.status}"${DELIM}"${secStr}"`;
+      })
     ];
 
     const blob = new Blob(["\uFEFF" + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -312,9 +331,9 @@ export const HealthIndexView: React.FC<HealthIndexViewProps> = ({
 
   // Export PDF
   const handleExportPdf = () => {
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, 210, 28, 'F');
+    doc.rect(0, 0, 297, 28, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
@@ -324,20 +343,26 @@ export const HealthIndexView: React.FC<HealthIndexViewProps> = ({
     const periodeText = `Periode: ${selectedMonth === 'ALL' ? 'Semua Bulan' : BULAN_NAMES[parseInt(selectedMonth) - 1]} ${selectedYear === 'ALL' ? 'Semua Tahun' : selectedYear} | Total: ${aggregatedPenyulangData.length} Penyulang`;
     doc.text(periodeText, 14, 19);
 
-    const rows = aggregatedPenyulangData.map((item, idx) => [
-      idx + 1,
-      item.penyulangName,
-      `${item.gangguanCount} kali`,
-      item.health.status.toUpperCase()
-    ]);
+    const rows = aggregatedPenyulangData.map((item, idx) => {
+      const secStr = item.affectedSections.length > 0 
+        ? item.affectedSections.map(s => `${s.section} (${s.count}x)`).join(', ')
+        : 'Nihil Padam';
+      return [
+        idx + 1,
+        item.penyulangName,
+        `${item.gangguanCount} kali`,
+        item.health.status.toUpperCase(),
+        secStr
+      ];
+    });
 
     autoTable(doc, {
       startY: 34,
-      head: [['No', 'Nama Penyulang', 'Frekuensi Gangguan', 'Health Index Status']],
+      head: [['No', 'Nama Penyulang', 'Frekuensi Gangguan', 'Health Index Status', 'Section Terkena Gangguan']],
       body: rows,
       theme: 'grid',
       headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
-      styles: { fontSize: 9, cellPadding: 3 }
+      styles: { fontSize: 8, cellPadding: 2.5 }
     });
 
     doc.save(`Health_Index_Penyulang_${selectedYear}_${selectedMonth}.pdf`);
@@ -598,6 +623,7 @@ export const HealthIndexView: React.FC<HealthIndexViewProps> = ({
                 <th className="p-3.5 font-bold">Nama Penyulang</th>
                 <th className="p-3.5 font-bold text-center">Frekuensi Gangguan</th>
                 <th className="p-3.5 font-bold text-center">Health Index Status</th>
+                <th className="p-3.5 font-bold">Section Terkena Gangguan</th>
                 <th className="p-3.5 font-bold">Gangguan Terakhir</th>
                 {!isReadOnly && <th className="p-3.5 font-bold text-center w-28">Aksi</th>}
               </tr>
@@ -605,7 +631,7 @@ export const HealthIndexView: React.FC<HealthIndexViewProps> = ({
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60">
               {aggregatedPenyulangData.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-slate-500 italic">
+                  <td colSpan={7} className="p-8 text-center text-slate-500 italic">
                     Tidak ada data penyulang yang sesuai dengan filter.
                   </td>
                 </tr>
@@ -639,6 +665,30 @@ export const HealthIndexView: React.FC<HealthIndexViewProps> = ({
                           <span className={`w-2 h-2 rounded-full ${item.health.dotBg}`}></span>
                           <span>{item.health.status}</span>
                         </span>
+                      </td>
+                      <td className="p-3.5">
+                        {item.affectedSections && item.affectedSections.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5 max-w-[280px]">
+                            {item.affectedSections.map(sec => (
+                              <span 
+                                key={sec.section}
+                                className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30"
+                                title={`Section ${sec.section} padam ${sec.count} kali`}
+                              >
+                                <Zap className="w-3 h-3 text-rose-400 shrink-0" />
+                                <span>{sec.section}</span>
+                                <span className="ml-0.5 px-1 bg-rose-500/25 text-rose-300 rounded text-[9px] font-black">
+                                  {sec.count}x
+                                </span>
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-slate-500 italic text-[11px] flex items-center space-x-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500/70" />
+                            <span>Nihil Section Gangguan</span>
+                          </span>
+                        )}
                       </td>
                       <td className="p-3.5">
                         {lastGangguan ? (

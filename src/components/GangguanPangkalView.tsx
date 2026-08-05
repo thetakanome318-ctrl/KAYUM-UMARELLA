@@ -16,11 +16,13 @@ import {
   Activity, 
   ShieldAlert, 
   Layers,
-  CheckCircle2
+  CheckCircle2,
+  BarChart3
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { saveGangguanPangkalToCloud, deleteGangguanPangkalFromCloud, subscribeGangguanPangkal } from '../lib/firebase';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 interface GangguanPangkalViewProps {
   isLight?: boolean;
@@ -299,6 +301,22 @@ export const GangguanPangkalView: React.FC<GangguanPangkalViewProps> = ({
     };
   }, [filteredRecords]);
 
+  // Monthly Bar Data computation
+  const monthlyBarData = useMemo(() => {
+    const map: Record<number, number> = {};
+    for (let i = 1; i <= 12; i++) map[i] = 0;
+    records.filter(r => selectedYear === 'ALL' || r.tahun === selectedYear).forEach(r => {
+      if (r.bulanKe >= 1 && r.bulanKe <= 12) {
+        map[r.bulanKe] = (map[r.bulanKe] || 0) + (r.jumlahGangguan || 1);
+      }
+    });
+    return BULAN_NAMES.map((name, idx) => ({
+      bulan: name.slice(0, 3),
+      namaBulan: name,
+      gangguan: map[idx + 1]
+    }));
+  }, [records, selectedYear]);
+
   // Export CSV
   const handleExportCsv = () => {
     const DELIM = ';';
@@ -476,6 +494,49 @@ export const GangguanPangkalView: React.FC<GangguanPangkalViewProps> = ({
               <span className="font-bold truncate mt-0.5 text-[10px]">{opt.name}</span>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Diagram Bar Gangguan Per Bulan */}
+      <div className={`p-5 rounded-2xl border ${
+        isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'
+      }`}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <div className="p-2 bg-rose-500/15 text-rose-500 rounded-lg">
+              <BarChart3 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold tracking-tight">Grafik Batang (Bar Chart) Frekuensi Gangguan Per Bulan</h3>
+              <p className="text-[11px] text-slate-400">Akumulasi jumlah gangguan trip penyulang per bulan pada tahun {selectedYear === 'ALL' ? 'Semua Tahun' : selectedYear}</p>
+            </div>
+          </div>
+          <div className="text-xs font-black px-3 py-1 bg-rose-500/20 text-rose-400 rounded-full border border-rose-500/30">
+            Total: {summaryMetrics.totalGangguan} Kali
+          </div>
+        </div>
+
+        <div className="w-full h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={monthlyBarData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={isLight ? '#e2e8f0' : '#334155'} opacity={0.5} />
+              <XAxis dataKey="bulan" stroke={isLight ? '#64748b' : '#94a3b8'} fontSize={11} tickLine={false} />
+              <YAxis stroke={isLight ? '#64748b' : '#94a3b8'} fontSize={11} tickLine={false} allowDecimals={false} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: isLight ? '#ffffff' : '#0f172a',
+                  borderColor: isLight ? '#cbd5e1' : '#334155',
+                  borderRadius: '12px',
+                  color: isLight ? '#1e293b' : '#f8fafc',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                }}
+                formatter={(value: any) => [`${value} Kali Trip`, 'Gangguan Pangkal']}
+                labelFormatter={(label, items) => items[0]?.payload?.namaBulan || label}
+              />
+              <Bar dataKey="gangguan" fill="#f43f5e" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 

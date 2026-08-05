@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import firebaseConfigData from '../../firebase-applet-config.json';
-import { ROWRecord, Penyulang, MasterSection, GangguanPangkalRecord } from '../types';
+import { ROWRecord, Penyulang, MasterSection, GangguanPangkalRecord, PemeliharaanRecord, ActivityLog } from '../types';
 import { MonthlyTargetItem } from '../utils/targetStorage';
 
 const firebaseConfig = {
@@ -38,6 +38,8 @@ const TARGETS_COLLECTION = 'monthlyTargets';
 const PENYULANG_COLLECTION = 'penyulang';
 const MASTER_SECTION_COLLECTION = 'masterSection';
 const GANGGUAN_PANGKAL_COLLECTION = 'gangguanPangkal';
+const PEMELIHARAAN_COLLECTION = 'pemeliharaanRecords';
+const ACTIVITY_LOGS_COLLECTION = 'activityLogs';
 
 // Error Handling helper as per firebase-integration skill
 enum OperationType {
@@ -352,5 +354,111 @@ export async function deleteGangguanPangkalFromCloud(id: string): Promise<void> 
     await deleteDoc(docRef);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// Real-time listener for Pemeliharaan Records
+export function subscribePemeliharaan(callback: (records: PemeliharaanRecord[]) => void): () => void {
+  const collectionRef = collection(db, PEMELIHARAAN_COLLECTION);
+  return onSnapshot(collectionRef, (snapshot) => {
+    const list: PemeliharaanRecord[] = [];
+    snapshot.forEach((docSnap) => {
+      list.push({ id: docSnap.id, ...docSnap.data() } as PemeliharaanRecord);
+    });
+    callback(list);
+  }, (error) => {
+    console.error('Error listening to Pemeliharaan:', error);
+  });
+}
+
+// Save or Update a Pemeliharaan record in Cloud
+export async function savePemeliharaanToCloud(record: PemeliharaanRecord): Promise<void> {
+  const path = `${PEMELIHARAAN_COLLECTION}/${record.id}`;
+  try {
+    const docRef = doc(db, PEMELIHARAAN_COLLECTION, record.id);
+    const dataToSave = sanitizeData({
+      ...record,
+      updatedAt: new Date().toISOString()
+    });
+    await setDoc(docRef, dataToSave, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+// Delete a Pemeliharaan record from Cloud
+export async function deletePemeliharaanFromCloud(id: string): Promise<void> {
+  const path = `${PEMELIHARAAN_COLLECTION}/${id}`;
+  try {
+    const docRef = doc(db, PEMELIHARAAN_COLLECTION, id);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// Real-time listener for Activity Logs
+export function subscribeActivityLogs(callback: (logs: ActivityLog[]) => void): () => void {
+  const collectionRef = collection(db, ACTIVITY_LOGS_COLLECTION);
+  return onSnapshot(collectionRef, (snapshot) => {
+    const list: ActivityLog[] = [];
+    snapshot.forEach((docSnap) => {
+      list.push({ id: docSnap.id, ...docSnap.data() } as ActivityLog);
+    });
+    // Sort latest first
+    list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    callback(list);
+  }, (error) => {
+    console.error('Error listening to Activity Logs:', error);
+  });
+}
+
+// Log an Activity
+export async function logActivityToCloud(
+  user: string,
+  action: 'TAMBAH' | 'EDIT' | 'HAPUS',
+  targetType: 'Gangguan' | 'Pemeliharaan' | 'ROW' | 'Inspeksi' | 'Penyulang' | 'Section' | 'Gangguan Pangkal',
+  details: string,
+  recordId?: string
+): Promise<void> {
+  const logId = `LOG-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  const path = `${ACTIVITY_LOGS_COLLECTION}/${logId}`;
+  try {
+    const docRef = doc(db, ACTIVITY_LOGS_COLLECTION, logId);
+    const dataToSave = sanitizeData<ActivityLog>({
+      id: logId,
+      timestamp: new Date().toISOString(),
+      user: user || 'Sistem / Anonim',
+      action,
+      targetType,
+      details,
+      recordId: recordId || ''
+    });
+    await setDoc(docRef, dataToSave);
+  } catch (error) {
+    console.error('Error logging activity to cloud:', error);
+  }
+}
+
+export async function deleteActivityLogFromCloud(log: ActivityLog): Promise<void> {
+  const logRef = doc(db, ACTIVITY_LOGS_COLLECTION, log.id);
+  await deleteDoc(logRef);
+
+  if (log.recordId) {
+    try {
+      if (log.targetType === 'Gangguan' || log.targetType === 'ROW' || log.targetType === 'Inspeksi') {
+        await deleteRecordFromCloud(log.recordId);
+      } else if (log.targetType === 'Pemeliharaan') {
+        await deletePemeliharaanFromCloud(log.recordId);
+      } else if (log.targetType === 'Penyulang') {
+        await deletePenyulangFromCloud(log.recordId);
+      } else if (log.targetType === 'Section') {
+        await deleteMasterSectionFromCloud(log.recordId);
+      } else if (log.targetType === 'Gangguan Pangkal') {
+        await deleteGangguanPangkalFromCloud(log.recordId);
+      }
+    } catch (err) {
+      console.warn("Failed to delete related data:", err);
+    }
   }
 }

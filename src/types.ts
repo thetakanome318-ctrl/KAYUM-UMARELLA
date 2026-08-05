@@ -101,13 +101,20 @@ export interface ROWRecord {
   penyebab?: string;
   kodeGangguan?: string;
   
-  // SAIDI SAIFI Fields
+  // SAIDI SAIFI & ENS Kumulatif Fields
   isSaidiSaifi?: boolean;
   tanggalPadam?: string;
   jamPadam?: string;
   lamaPadamJam?: number;
   pelangganPadam?: number;
   totalPelanggan?: number;
+  saidiKumulatif?: number; // SAIDI Kumulatif (Jam/Plg atau Menit/Plg)
+  saifiKumulatif?: number; // SAIFI Kumulatif (Kali/Plg)
+  ensKwh?: number; // Energy Not Served (kWh)
+  targetSaidiKumulatif?: number; // Target SAIDI Kumulatif
+  targetSaifiKumulatif?: number; // Target SAIFI Kumulatif
+  targetEnsKwh?: number; // Target ENS (kWh)
+  tarifRupiahPerKwh?: number; // Tarif Dasar Listrik per kWh (Rp/kWh)
   
   // Temuan Pohon Luar Target (Luar Temuan)
   luarTemuan?: number; // Jumlah temuan pohon di luar target/rutin
@@ -132,6 +139,7 @@ export interface ROWRecord {
   isMapFinding?: boolean;
   
   treeDetails?: TreeDetail[]; // Detail per pohon
+  isImported?: boolean;
 }
 
 export interface DailyKPIStats {
@@ -168,7 +176,7 @@ export interface KPIStats {
 }
 
 export interface FilterState {
-  tipeData: 'ROW' | 'INSPEKSI' | 'GANGGUAN' | 'GARDU' | 'SAIDI_SAIFI';
+  tipeData: 'ROW' | 'INSPEKSI' | 'GANGGUAN' | 'GARDU' | 'SAIDI_SAIFI' | 'PEMELIHARAAN';
 }
 
 export interface Penyulang {
@@ -186,6 +194,7 @@ export interface MasterSection {
   namaSection: string;
   penyulang?: string;
   jumlahPelanggan: number;
+  sistemOperasi?: 'Loop' | 'Radial';
   keterangan?: string;
   createdAt?: string;
 }
@@ -201,4 +210,31 @@ export interface PenyulangTarget {
   updatedAt?: string;
 }
 
-export type ViewTab = 'dashboard' | 'timeline' | 'table' | 'charts' | 'calendar' | 'map' | 'master' | 'target_management' | 'inspection' | 'inspection_monitoring' | 'row_monitoring' | 'gangguan' | 'gardu' | 'saidi_saifi' | 'health_index' | 'gangguan_pangkal';
+export interface PemeliharaanRecord {
+  id: string;
+  tanggal: string; // e.g., '2026-08-05'
+  bulan?: string; // e.g., '2026-08'
+  tahun?: number;
+  penyulang: string;
+  section?: string;
+  jenisPemeliharaan: 'Pemeliharaan Rutin' | 'Pemeliharaan Korektif' | 'Pemeliharaan Preventive' | 'Rabas Pohon' | 'Penggantian Komponen' | 'Overhaul';
+  peralatan?: string; // e.g., 'Trafo', 'Recloser', 'LBS', 'Isolator', 'Cut Out', 'Arrester', 'Kabel/Penghantar'
+  pelaksana?: string; // Tim / Petugas Lapangan
+  status: 'Selesai' | 'Dalam Proses' | 'Perlu Follow Up';
+  keterangan?: string;
+  lokasi?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  timestamp: string;
+  user: string;
+  action: 'TAMBAH' | 'EDIT' | 'HAPUS';
+  targetType: 'Gangguan' | 'Pemeliharaan' | 'ROW' | 'Inspeksi' | 'Penyulang' | 'Section' | 'Gangguan Pangkal';
+  details: string;
+  recordId?: string;
+}
+
+export type ViewTab = 'dashboard' | 'timeline' | 'table' | 'charts' | 'calendar' | 'map' | 'master' | 'target_management' | 'gangguan' | 'gardu' | 'saidi_saifi' | 'health_index' | 'gangguan_pangkal' | 'sld';

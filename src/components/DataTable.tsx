@@ -73,7 +73,7 @@ export const DataTable: React.FC<DataTableProps> = ({
     doc.text('PLN (PERSERO) — LAPORAN DETAIL TEMUAN ROW', 14, 12);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text('Sistem Monitoring Gangguan Penyulang, ROW Pohon & Pengukuran Gardu — ULP Baguala', 14, 20);
+    doc.text('Aplikasi Perang Padam Baguala — Monitoring Gangguan Penyulang, ROW Pohon & Pengukuran Gardu — ULP Baguala', 14, 20);
 
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(11);

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { HardHat, Lock, User, KeyRound, AlertCircle, Eye, EyeOff, Zap, RefreshCw, ShieldAlert } from 'lucide-react';
 import { getUsersList } from '../utils/userStorage';
 import { UserAccount } from '../types';
-import bgPlnWorker from '../assets/images/pln_tree_trimming_1785589720078.jpg';
+import { EbtBackgroundAnimation } from './EbtBackgroundAnimation';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: { username: string; name: string; role: string; photo?: string }) => void;
@@ -139,18 +139,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden">
-      {/* Background PLN Worker Tree Trimming Image */}
-      <div className="absolute inset-0 z-0">
-        <img
-          src={bgPlnWorker}
-          alt="Petugas PLN sedang pemangkasan pohon"
-          referrerPolicy="no-referrer"
-          className="w-full h-full object-cover object-center opacity-30 scale-105 filter brightness-90 saturate-110"
-        />
-        {/* Vignette & Gradient Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-slate-950/60" />
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-transparent to-slate-950/90" />
-      </div>
+      {/* PLN ULP Baguala Background Photo with Overlay */}
+      <div 
+        className="absolute inset-0 z-0 bg-cover bg-center opacity-40 filter brightness-75 scale-105 transition-transform duration-1000"
+        style={{ backgroundImage: `url('https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=1920&q=80')` }}
+      />
+      <div className="absolute inset-0 z-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-slate-950/60" />
+
+      {/* Animated EBT (Energi Baru Terbarukan) Background */}
+      <EbtBackgroundAnimation />
 
       {/* Background Decorative Gradients */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none z-0" />
@@ -172,7 +169,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             Perang Padam Baguala
           </h1>
           <p className="text-xs text-slate-300 mt-1 drop-shadow">
-            Sistem Monitoring Gangguan Penyulang, ROW Pohon, Inspeksi dan Pengukuran Gardu
+            Monitoring Gangguan Penyulang, ROW Pohon, Inspeksi dan Pengukuran Gardu
           </p>
         </div>
 
@@ -296,7 +293,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             ⚡ Pantang Pulang Sebelum Terang ⚡
           </p>
           <p className="text-[11px] text-slate-500">
-            Aplikasi Perang Padam Baguala — Sistem Monitoring Gangguan Penyulang, ROW Pohon, Inspeksi dan Pengukuran Gardu 20kV PLN
+            Aplikasi Perang Padam Baguala — Monitoring Gangguan Penyulang, ROW Pohon, Inspeksi dan Pengukuran Gardu 20kV PLN
           </p>
         </div>
       </div>

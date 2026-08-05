@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import powerLinesBg from '../assets/images/power_lines_bg_1785580144298.jpg';
 import { getDailySafetyMessage, SAFETY_MESSAGES } from '../data/safetyMessages';
+import { HssePlnLogo } from './HssePlnLogo';
 
 interface HeaderProps {
   onOpenModal: () => void;
@@ -115,7 +116,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className={`relative border-b shadow-xl overflow-hidden sticky top-0 z-30 transition-all duration-300 ${
+    <header className={`border-b shadow-2xl sticky top-0 z-[100] transition-all duration-300 ${
       isLight 
         ? "bg-white/95 backdrop-blur-md text-slate-800 border-slate-200/80" 
         : "bg-slate-950/95 backdrop-blur-md text-white border-slate-800/80"
@@ -158,15 +159,11 @@ export const Header: React.FC<HeaderProps> = ({
             <motion.div 
               whileHover={{ scale: 1.05, rotate: 2 }}
               whileTap={{ scale: 0.95 }}
-              className={`relative h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg shrink-0 transition-all duration-300 cursor-pointer ${
-                isLight 
-                  ? 'bg-gradient-to-br from-amber-500/15 to-emerald-500/10 border border-amber-300/50 shadow-amber-500/10' 
-                  : 'bg-gradient-to-br from-amber-500/25 to-cyan-500/15 border border-amber-400/40 shadow-amber-950/50'
-              }`}
+              className="relative h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg shrink-0 transition-all duration-300 cursor-pointer bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 border border-blue-300/40 shadow-blue-500/30"
             >
-              <HardHat className="h-6 w-6 text-amber-500 dark:text-amber-400 drop-shadow" />
+              <Zap className="h-7 w-7 text-amber-300 fill-amber-300 drop-shadow-md" />
               <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-950 flex items-center justify-center shadow">
-                <Zap className="w-2.5 h-2.5 text-white fill-white scale-75" />
+                <span className="w-2 h-2 rounded-full bg-white animate-ping" />
               </div>
             </motion.div>
 
@@ -175,42 +172,19 @@ export const Header: React.FC<HeaderProps> = ({
                 <h1 className={`text-lg sm:text-xl font-black tracking-tight flex items-center gap-2 transition-all ${
                   isLight ? "text-slate-900" : "text-white"
                 }`}>
-                  <span>Perang Padam Baguala</span>
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-black flex items-center gap-1 shadow-xs">
-                    <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
+                  <span className="uppercase text-amber-500 font-extrabold tracking-wide">PERANG PADAM BAGUALA</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-500 dark:text-amber-400 border border-amber-500/30 font-mono font-bold shadow-xs">
                     20kV PLN
                   </span>
                 </h1>
               </div>
 
-              <div className="flex flex-col text-xs mt-1 transition-all">
+              <div className="flex flex-col text-xs mt-0.5 transition-all">
                 <span className={`font-semibold flex items-center gap-1.5 ${
-                  isLight ? "text-emerald-700" : "text-emerald-400"
+                  isLight ? "text-slate-600" : "text-slate-300"
                 }`}>
-                  <Activity className="w-3.5 h-3.5" />
-                  Sistem Monitoring Gangguan Penyulang, ROW Pohon, Inspeksi dan Pengukuran Gardu
+                  Monitoring Gangguan dan Pemeliharaan — ULP Baguala
                 </span>
-                
-                <motion.div 
-                  initial={{ opacity: 0, y: 2 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className={`italic mt-1 pl-4 flex items-center gap-1.5 text-[11px] font-bold tracking-wide ${
-                    isLight ? "text-emerald-600/90" : "text-emerald-300/90"
-                  }`}
-                >
-                  <motion.span 
-                    animate={{ scale: [1, 1.3, 1], opacity: [0.7, 1, 0.7] }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                    className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shadow shadow-emerald-400"
-                  />
-                  <motion.span
-                    animate={{ letterSpacing: ["0px", "0.5px", "0px"] }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                  >
-                    Pantang Pulang Sebelum Terang — Support by the tukimen
-                  </motion.span>
-                </motion.div>
               </div>
             </div>
           </div>
@@ -380,88 +354,6 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </div>
             )}
-          </div>
-        </div>
-      </div>
-
-      {/* Sub-Header: Pesan Keselamatan Harian (K3) - Positioned cleanly below the main header row */}
-      <div className={`border-t transition-colors relative z-10 ${
-        isLight
-          ? 'border-red-300 bg-gradient-to-r from-red-600 via-red-500 to-red-600 text-white shadow-xs'
-          : 'border-red-950 bg-gradient-to-r from-red-800 via-red-900 to-red-800 text-white shadow-xs'
-      }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 text-xs">
-          
-          {/* Left: K3 Badge & Focus */}
-          <div className="flex items-center space-x-2.5 shrink-0">
-            <div className={`p-1.5 rounded-lg flex items-center justify-center font-bold shrink-0 ${
-              isLight ? 'bg-red-700 text-white shadow-xs' : 'bg-red-500/30 text-white border border-red-500/40'
-            }`}>
-              <ShieldCheck className="w-4 h-4 animate-pulse" />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center space-x-2">
-                <span className="font-black tracking-wider uppercase text-[9px] px-1.5 py-0.5 rounded bg-white/20 text-white border border-white/30">
-                  PESAN K3 HARIAN
-                </span>
-                <span className="text-[10px] font-semibold opacity-90 flex items-center gap-1 text-white">
-                  <Calendar className="w-3 h-3 text-white" />
-                  {formattedSafetyDate}
-                </span>
-              </div>
-              <span className="text-[11px] font-extrabold text-white/95">
-                Fokus: {dailySafetyMessage.focus}
-              </span>
-            </div>
-          </div>
-
-          {/* Center: Message text with Running Text effect */}
-          <div className="flex-1 px-1 md:px-4 py-0.5 min-w-0 overflow-hidden relative">
-            <div className="whitespace-nowrap inline-block animate-marquee hover:[animation-play-state:paused] cursor-help">
-              <p className="text-[13px] font-bold leading-snug italic text-white px-4">
-                "{dailySafetyMessage.message}" — Tetap Utamakan Keselamatan dan Kesehatan Kerja (K3) dalam setiap aktivitas!
-              </p>
-            </div>
-            {/* Fade effects for the marquee edges */}
-            <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-red-600/50 dark:from-red-950/50 to-transparent pointer-events-none" />
-            <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-red-600/50 dark:from-red-950/50 to-transparent pointer-events-none" />
-          </div>
-
-          {/* Right: Category badge & Navigation controls */}
-          <div className="flex items-center justify-between md:justify-end space-x-2.5 shrink-0">
-            <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold border ${
-              isLight 
-                ? 'bg-red-700/50 text-white border-red-400/30' 
-                : 'bg-red-900/60 text-red-100 border-red-700/60'
-            }`}>
-              {dailySafetyMessage.category}
-            </span>
-
-            <div className="flex items-center space-x-0.5 bg-black/5 dark:bg-white/5 rounded-lg p-0.5 border border-red-400/30">
-              <button
-                onClick={handlePrevSafetyDate}
-                title="Pesan Hari Sebelumnya"
-                className="p-1 rounded hover:bg-red-500/30 transition cursor-pointer text-white active:scale-95"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </button>
-              {!isToday && (
-                <button
-                  onClick={handleResetSafetyDate}
-                  title="Kembali ke Hari Ini"
-                  className="p-1 rounded hover:bg-red-500/30 transition cursor-pointer text-white active:scale-95"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
-              )}
-              <button
-                onClick={handleNextSafetyDate}
-                title="Pesan Hari Berikutnya"
-                className="p-1 rounded hover:bg-red-500/30 transition cursor-pointer text-white active:scale-95"
-              >
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
           </div>
         </div>
       </div>

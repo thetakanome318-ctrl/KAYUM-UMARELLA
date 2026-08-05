@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { ROWRecord, FilterState, ViewTab, Penyulang, PenyulangTarget, MasterSection } from './types';
+import { ROWRecord, FilterState, ViewTab, Penyulang, PenyulangTarget, MasterSection, PemeliharaanRecord } from './types';
 import { INITIAL_RECORDS } from './data/mockData';
 import { calculateKPIStats, formatBulan } from './utils/calculations';
 import { getMonthlyTargetsMap, saveMonthlyTargetsMap, MonthlyTargetItem, DEFAULT_MONTHLY_TARGETS } from './utils/targetStorage';
@@ -8,21 +8,24 @@ import {
   subscribeMonthlyTargets, 
   subscribePenyulang,
   subscribeMasterSection,
+  subscribePemeliharaan,
+  savePemeliharaanToCloud,
+  deletePemeliharaanFromCloud,
   saveRecordToCloud, 
   deleteRecordFromCloud, 
   syncAllRecordsToCloud, 
   syncAllTargetsToCloud,
-  clearAllCloudRecords
+  clearAllCloudRecords,
+  logActivityToCloud
 } from './lib/firebase';
 import { Header } from './components/Header';
+import { ExecutiveSummaryView } from './components/ExecutiveSummaryView';
 import { FilterBar } from './components/FilterBar';
 import { TrendCharts } from './components/TrendCharts';
 import { TimelineView } from './components/TimelineView';
 import { DataTable } from './components/DataTable';
 import { EntryFormModal } from './components/EntryFormModal';
-import { InspectionView } from './components/InspectionView';
 import { GangguanView } from './components/GangguanView';
-import { InspectionFormModal } from './components/InspectionFormModal';
 import { GarduMeasurementView } from './components/GarduMeasurementView';
 import { GarduMeasurementFormModal } from './components/GarduMeasurementFormModal';
 import { ExportPdfModal } from './components/ExportPdfModal';
@@ -33,16 +36,16 @@ import { CalendarView } from './components/CalendarView';
 import { MapView } from './components/MapView';
 import { MasterDataView } from './components/MasterDataView';
 import { TargetManagementView } from './components/TargetManagementView';
-import { InspectionMonitoringView } from './components/InspectionMonitoringView';
-import { RowMonitoringView } from './components/RowMonitoringView';
 import { DashboardTargetTable } from './components/DashboardTargetTable';
 import { SaidiSaifiView } from './components/SaidiSaifiView';
 import { HealthIndexView } from './components/HealthIndexView';
 import { GangguanPangkalView } from './components/GangguanPangkalView';
 import { HealthIndexSummaryCard } from './components/HealthIndexSummaryCard';
+import { SldView } from './components/SldView';
+import { SpkluEvChargingBackground } from './components/SpkluEvChargingBackground';
+import { HorizontalNav } from './components/HorizontalNav';
 import { TopGangguanPenyulangCard } from './components/TopGangguanPenyulangCard';
-import { TopRowPruningRecommendationCard } from './components/TopRowPruningRecommendationCard';
-import { Plus, Clock, FileSpreadsheet, Sparkles, CheckCircle2, Map as MapIcon, LayoutDashboard, BarChart3, Calendar, Table, TreePine, Download, FileText, LogOut, Save, Users, Database, Target, ChevronDown, ClipboardCheck, Zap, HeartPulse } from 'lucide-react';
+import { Plus, Clock, FileSpreadsheet, Sparkles, CheckCircle2, Map as MapIcon, LayoutDashboard, BarChart3, Calendar, Table, TreePine, Download, FileText, LogOut, Save, Users, Database, Target, ChevronDown, ClipboardCheck, Zap, HeartPulse, Wrench } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import bgImage from './assets/images/power_lines_bg_1785580144298.jpg';
@@ -120,12 +123,14 @@ export default function App() {
 
     const unsubscribePenyulang = subscribePenyulang(setPenyulangMaster);
     const unsubscribeSection = subscribeMasterSection(setSectionMaster);
+    const unsubscribePemeliharaan = subscribePemeliharaan(setPemeliharaanRecords);
 
     return () => {
       unsubscribeRecords();
       unsubscribeTargets();
       unsubscribePenyulang();
       unsubscribeSection();
+      unsubscribePemeliharaan();
     };
   }, []);
 
@@ -164,10 +169,12 @@ export default function App() {
   // Master Data State
   const [penyulangMaster, setPenyulangMaster] = useState<Penyulang[]>([]);
   const [sectionMaster, setSectionMaster] = useState<MasterSection[]>([]);
+  const [pemeliharaanRecords, setPemeliharaanRecords] = useState<PemeliharaanRecord[]>([]);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInspectionModalOpen, setIsInspectionModalOpen] = useState(false);
+  const [isPemeliharaanModalOpen, setIsPemeliharaanModalOpen] = useState(false);
   const [isGarduMeasurementModalOpen, setIsGarduMeasurementModalOpen] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isTargetModalOpen, setIsTargetModalOpen] = useState(false);
@@ -254,8 +261,9 @@ export default function App() {
       INSPEKSI: inspeksi,
       GANGGUAN: gangguan,
       GARDU: gardu,
+      PEMELIHARAAN: pemeliharaanRecords.length,
     };
-  }, [records]);
+  }, [records, pemeliharaanRecords]);
 
   // Calculate KPI Stats for filtered records with manual monthly targets
   const kpiStats = useMemo(() => {
@@ -266,14 +274,8 @@ export default function App() {
     setFilter(newFilter);
     if (newFilter.tipeData === 'GARDU') {
       setActiveTab('gardu');
-    } else if (newFilter.tipeData === 'INSPEKSI') {
-      setActiveTab('inspection');
     } else if (newFilter.tipeData === 'GANGGUAN') {
       setActiveTab('gangguan');
-    } else if (newFilter.tipeData === 'ROW') {
-      if (activeTab === 'gardu' || activeTab === 'inspection' || activeTab === 'gangguan') {
-        setActiveTab('table');
-      }
     }
   };
 
@@ -308,9 +310,9 @@ export default function App() {
   };
 
   const handleSaveRecord = async (savedRecord: ROWRecord) => {
+    const isEdit = records.some((item) => item.id === savedRecord.id);
     setRecords((prev) => {
-      const exists = prev.some((item) => item.id === savedRecord.id);
-      if (exists) {
+      if (isEdit) {
         return prev.map((item) => (item.id === savedRecord.id ? savedRecord : item));
       } else {
         return [savedRecord, ...prev];
@@ -318,6 +320,11 @@ export default function App() {
     });
     try {
       await saveRecordToCloud(savedRecord);
+      const actionType = isEdit ? 'EDIT' : 'TAMBAH';
+      const modType = savedRecord.gangguan ? 'Gangguan' : 'ROW';
+      const detailStr = `Penyulang: ${savedRecord.penyulang || '-'}, Section: ${savedRecord.section || '-'}`;
+      await logActivityToCloud(currentUser?.name || currentUser?.username || 'Petugas', actionType, modType, detailStr, savedRecord.id);
+
       const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       setLastSaveTime(nowTime);
     } catch (e) {
@@ -327,15 +334,75 @@ export default function App() {
 
   const handleDeleteRecord = async (id: string) => {
     if (window.confirm('Apakah Anda ingin menghapus file / data ini?')) {
+      const targetRecord = records.find((item) => item.id === id);
       const updated = records.filter((item) => item.id !== id);
       setRecords(updated);
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
         await deleteRecordFromCloud(id);
+        
+        const modType = targetRecord?.gangguan ? 'Gangguan' : 'ROW';
+        const detailStr = `Penghapusan data Penyulang ${targetRecord?.penyulang || '-'} (${targetRecord?.section || '-'})`;
+        await logActivityToCloud(currentUser?.name || currentUser?.username || 'Petugas', 'HAPUS', modType, detailStr, id);
+
         const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         setLastSaveTime(nowTime);
       } catch (e) {
         console.error('Error deleting from Cloud Firestore:', e);
+      }
+    }
+  };
+
+  const handleDeleteMultipleRecords = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    if (window.confirm(`Apakah Anda yakin ingin menghapus ${ids.length} data gangguan hasil impor Excel ini?`)) {
+      const updated = records.filter((item) => !ids.includes(item.id));
+      setRecords(updated);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        await Promise.all(ids.map(id => deleteRecordFromCloud(id)));
+        
+        await logActivityToCloud(
+          currentUser?.name || currentUser?.username || 'Petugas',
+          'HAPUS',
+          'Gangguan',
+          `Menghapus ${ids.length} data gangguan hasil impor Excel`,
+          ids.join(',')
+        );
+
+        const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setLastSaveTime(nowTime);
+      } catch (e) {
+        console.error('Error deleting multiple from Cloud Firestore:', e);
+      }
+    }
+  };
+
+  const handleSavePemeliharaan = async (rec: PemeliharaanRecord) => {
+    const isEdit = pemeliharaanRecords.some((p) => p.id === rec.id);
+    try {
+      await savePemeliharaanToCloud(rec);
+      const actionType = isEdit ? 'EDIT' : 'TAMBAH';
+      const detailStr = `Pemeliharaan ${rec.jenisPemeliharaan || 'Rutin'} - Penyulang ${rec.penyulang || '-'} (${rec.status || 'Baru'})`;
+      await logActivityToCloud(currentUser?.name || currentUser?.username || 'Petugas', actionType, 'Pemeliharaan', detailStr, rec.id);
+      const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      setLastSaveTime(nowTime);
+    } catch (e) {
+      console.error('Error saving Pemeliharaan:', e);
+    }
+  };
+
+  const handleDeletePemeliharaan = async (id: string) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus catatan pemeliharaan ini?')) {
+      const target = pemeliharaanRecords.find((p) => p.id === id);
+      try {
+        await deletePemeliharaanFromCloud(id);
+        const detailStr = `Penghapusan pemeliharaan ${target?.jenisPemeliharaan || ''} Penyulang ${target?.penyulang || ''}`;
+        await logActivityToCloud(currentUser?.name || currentUser?.username || 'Petugas', 'HAPUS', 'Pemeliharaan', detailStr, id);
+        const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setLastSaveTime(nowTime);
+      } catch (e) {
+        console.error('Error deleting Pemeliharaan:', e);
       }
     }
   };
@@ -1152,15 +1219,12 @@ export default function App() {
 
   return (
     <div 
-      className={`min-h-screen font-sans flex flex-col relative bg-cover bg-center bg-fixed transition-colors duration-300 ${
+      className={`min-h-screen font-sans flex flex-col relative transition-colors duration-300 ${
         isLight ? "text-slate-800 bg-slate-50" : "text-white bg-slate-950"
       }`}
-      style={{
-        backgroundImage: isLight 
-          ? `linear-gradient(to bottom, rgba(248, 250, 252, 0.92), rgba(241, 245, 249, 0.96)), url(${bgImage})`
-          : `linear-gradient(to bottom, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.90)), url(${bgImage})`,
-      }}
     >
+      {/* Animated SPKLU Electric Vehicle Charging Station Background */}
+      <SpkluEvChargingBackground isLight={isLight} />
       {/* Top Header */}
       <Header
         onOpenModal={handleOpenAddModal}
@@ -1182,352 +1246,47 @@ export default function App() {
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         
-        {/* Horizontal Filter Bar */}
-        <FilterBar 
-          filter={filter} 
-          onFilterChange={handleFilterChange}
-          totalFilteredCount={filteredRecords.length}
+        {/* Horizontal Navigation Menu (Positioned directly below Safety Banner) */}
+        <HorizontalNav
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
           isLight={isLight}
-          counts={typeCounts}
+          gangguanCount={typeCounts.GANGGUAN}
+          penyulangCount={penyulangMaster.length || 8}
+          isReadOnly={isReadOnly}
+          onOpenAddModal={() => handleOpenAddModal(false)}
+          onOpenInspectionModal={() => setIsInspectionModalOpen(true)}
+          onOpenPemeliharaanModal={() => setIsPemeliharaanModalOpen(true)}
         />
 
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* LEFT COLUMN: NAVIGATION SIDEBAR & COMMAND CENTER */}
-          <aside className="w-full lg:w-80 shrink-0 space-y-4">
-            {/* Card 1: Brand & Menu Navigasi (Pushed to the very top) */}
-            <div className={`backdrop-blur-md rounded-2xl border p-4 shadow-xl space-y-4 transition-all duration-300 ${
-              isLight 
-                ? 'bg-white border-slate-200/80 text-slate-800 shadow-slate-100' 
-                : 'bg-slate-900/95 border-slate-800 text-white shadow-xl'
-            }`}>
-              {/* Menu Navigasi */}
-              <div className="space-y-1">
-                <p className={`text-[9px] font-bold uppercase tracking-wider px-2 mb-1.5 ${
-                  isLight ? 'text-slate-400' : 'text-slate-500'
-                }`}>
-                  Menu Navigasi
-                </p>
+        {/* Persistent Feeder Health Index Status Card across ALL tabs */}
+        <HealthIndexSummaryCard
+          records={records}
+          penyulangMaster={penyulangMaster}
+          selectedYear={selectedYear}
+          selectedMonth={selectedMonth}
+          isLight={isLight}
+          onNavigateToHealthIndex={() => setActiveTab('health_index')}
+        />
 
-                <button
-                  onClick={() => setActiveTab('dashboard')}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'dashboard'
-                      ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <LayoutDashboard className="w-4 h-4 shrink-0" />
-                  <span>Dashboard Overview</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('charts')}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'charts'
-                      ? 'bg-indigo-500 text-slate-950 shadow-lg shadow-indigo-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <BarChart3 className="w-4 h-4 shrink-0" />
-                  <span>Grafik Tren & Analytics</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('master')}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'master'
-                      ? 'bg-rose-500 text-slate-950 shadow-lg shadow-rose-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <Database className="w-4 h-4 shrink-0" />
-                  <span>Master Data & Section</span>
-                </button>
-
-                {(currentUser?.role === 'Admin System' || currentUser?.username === 'admin') && (
-                  <button
-                    onClick={() => setIsUserModalOpen(true)}
-                    className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                      isLight 
-                        ? 'text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200' 
-                        : 'text-purple-300 bg-purple-950/40 hover:bg-purple-900/60 border-purple-500/30'
-                    }`}
-                  >
-                    <Users className="w-4 h-4 text-purple-500 shrink-0" />
-                    <span>Kelola Pengguna</span>
-                  </button>
-                )}
-
-                <button
-                  onClick={() => setActiveTab('target_management')}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'target_management'
-                      ? 'bg-purple-500 text-slate-950 shadow-lg shadow-purple-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <Target className="w-4 h-4 shrink-0" />
-                  <span>Target Bulanan</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('timeline')}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'timeline'
-                      ? 'bg-blue-500 text-slate-950 shadow-lg shadow-blue-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <Clock className="w-4 h-4 shrink-0" />
-                  <span>Timeline ROW Pohon</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('calendar')}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'calendar'
-                      ? 'bg-orange-500 text-slate-950 shadow-lg shadow-orange-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <Calendar className="w-4 h-4 shrink-0" />
-                  <span>Kalender Hasil Tanggal</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('map')}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'map'
-                      ? 'bg-teal-500 text-slate-950 shadow-lg shadow-teal-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <MapIcon className="w-4 h-4 shrink-0" />
-                  <span className="flex-1 text-left">Peta Sebaran</span>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('table')}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'table'
-                      ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <Table className="w-4 h-4 shrink-0" />
-                  <span className="flex-1 text-left">Data Tabel</span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${
-                    isLight 
-                      ? 'bg-slate-100 text-slate-700 border-slate-200' 
-                      : 'bg-slate-800 text-slate-300 border-slate-700'
-                  }`}>
-                    {filteredRecords.length}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('inspection')}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'inspection'
-                      ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <ClipboardCheck className="w-4 h-4 shrink-0" />
-                  <span>Timeline Inspeksi</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('inspection_monitoring')}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'inspection_monitoring'
-                      ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <BarChart3 className="w-4 h-4 shrink-0" />
-                  <span>Monitoring Hasil Inspeksi</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('row_monitoring')}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'row_monitoring'
-                      ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <TreePine className="w-4 h-4 shrink-0" />
-                  <span>Monitoring Hasil ROW</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('gangguan')}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'gangguan'
-                      ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <ClipboardCheck className="w-4 h-4 shrink-0" />
-                  <span>Gangguan Penyulang</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setActiveTab('gardu');
-                    setFilter(prev => ({ ...prev, tipeData: 'GARDU' }));
-                  }}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'gardu'
-                      ? 'bg-purple-500 text-slate-950 shadow-lg shadow-purple-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <Zap className="w-4 h-4 shrink-0" />
-                  <span>Data Pengukuran Gardu</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('saidi_saifi')}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'saidi_saifi'
-                      ? 'bg-blue-500 text-slate-950 shadow-lg shadow-blue-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <BarChart3 className="w-4 h-4 shrink-0" />
-                  <span>Perhitungan SAIDI & SAIFI</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('health_index')}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'health_index'
-                      ? 'bg-rose-500 text-slate-950 shadow-lg shadow-rose-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <HeartPulse className="w-4 h-4 shrink-0" />
-                  <span>Health Index Penyulang</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('gangguan_pangkal')}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                    activeTab === 'gangguan_pangkal'
-                      ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 font-bold'
-                      : isLight
-                        ? 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <Zap className="w-4 h-4 shrink-0" />
-                  <span>Gangguan Pangkal (GI)</span>
-                </button>
-
-                {!isReadOnly && (
-                  <div className="pt-2 space-y-2">
-                    <button
-                      onClick={() => handleOpenAddModal(false)}
-                      className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                        isLight
-                          ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'
-                          : 'text-emerald-400 bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/30'
-                      }`}
-                    >
-                      <Plus className="w-4 h-4 stroke-[3] shrink-0" />
-                      <span>Input Realisasi</span>
-                    </button>
-
-                    <button
-                      onClick={() => setIsInspectionModalOpen(true)}
-                      className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-3 transition-all cursor-pointer ${
-                        isLight
-                          ? 'text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200'
-                          : 'text-cyan-400 bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/30'
-                      }`}
-                    >
-                      <Plus className="w-4 h-4 stroke-[3] shrink-0" />
-                      <span>Input Inspeksi</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </aside>
-
-          {/* RIGHT COLUMN: MAIN CONTENT AREA */}
-          <div className="flex-1 min-w-0">
-            {activeTab === 'dashboard' && (
-              <div className="space-y-6">
-                <HealthIndexSummaryCard
-                  records={records}
-                  penyulangMaster={penyulangMaster}
-                  selectedYear={selectedYear}
-                  selectedMonth={selectedMonth}
-                  isLight={isLight}
-                  onNavigateToHealthIndex={() => setActiveTab('health_index')}
-                />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <TopGangguanPenyulangCard 
-                    records={records} 
-                    selectedYear={selectedYear} 
-                    selectedMonth={selectedMonth} 
-                    isLight={isLight} 
-                  />
-                  <TopRowPruningRecommendationCard 
-                    records={records} 
-                    selectedYear={selectedYear} 
-                    selectedMonth={selectedMonth} 
-                    isLight={isLight} 
-                  />
-                </div>
-                <DashboardTargetTable 
-                  records={records} 
-                  penyulangMaster={penyulangMaster} 
-                  selectedYear={selectedYear} 
-                  selectedMonth={selectedMonth} 
-                  isLight={isLight} 
-                />
-              </div>
-            )}
+        {/* Main Tab Content */}
+        <div className="w-full">
+          {activeTab === 'dashboard' && (
+            <ExecutiveSummaryView 
+              records={records}
+              pemeliharaanRecords={pemeliharaanRecords}
+              penyulangMaster={penyulangMaster}
+              selectedYear={selectedYear}
+              selectedMonth={selectedMonth}
+              isLight={isLight}
+            />
+          )}
 
             {activeTab === 'charts' && (
               <TrendCharts 
                 records={records} 
                 monthlyTargetsMap={monthlyTargetsMap} 
+                isLight={isLight}
               />
             )}
 
@@ -1543,60 +1302,10 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'timeline' && (
-              <TimelineView
-                records={records}
-                onSelectRecord={handleOpenEditModal}
-                onDeleteRecord={handleDeleteRecord}
-                isReadOnly={isReadOnly}
-                isLight={isLight}
-              />
-            )}
-
-            {activeTab === 'calendar' && (
-              <CalendarView
-                records={records}
-                onSelectRecord={() => {}}
-              />
-            )}
-
             {activeTab === 'map' && (
               <MapView
                 records={records}
-              />
-            )}
-
-            {activeTab === 'table' && (
-              <DataTable
-                records={filteredRecords}
-                onEditRecord={handleOpenEditModal}
-                onDeleteRecord={handleDeleteRecord}
-                isReadOnly={isReadOnly}
-                isLight={isLight}
-              />
-            )}
-
-            {activeTab === 'inspection' && (
-              <InspectionView
-                records={records}
-                isLight={isLight}
-                onDeleteRecord={handleDeleteRecord}
-                isReadOnly={isReadOnly}
-              />
-            )}
-
-            {activeTab === 'inspection_monitoring' && (
-              <InspectionMonitoringView
-                records={records}
-                isLight={isLight}
-              />
-            )}
-
-            {activeTab === 'row_monitoring' && (
-              <RowMonitoringView
-                records={records}
-                isLight={isLight}
-                penyulangList={penyulangMaster}
+                pemeliharaanRecords={pemeliharaanRecords}
               />
             )}
 
@@ -1606,18 +1315,9 @@ export default function App() {
                 isLight={isLight}
                 onSaveRecord={handleSaveRecord}
                 onDeleteRecord={handleDeleteRecord}
+                onDeleteMultipleRecords={handleDeleteMultipleRecords}
                 penyulangList={penyulangMaster}
                 sectionList={sectionMaster}
-                isReadOnly={isReadOnly}
-              />
-            )}
-
-            {activeTab === 'gardu' && (
-              <GarduMeasurementView
-                records={records}
-                isLight={isLight}
-                onEditRecord={handleOpenEditModal}
-                onDeleteRecord={handleDeleteRecord}
                 isReadOnly={isReadOnly}
               />
             )}
@@ -1653,9 +1353,16 @@ export default function App() {
               />
             )}
 
+            {activeTab === 'sld' && (
+              <SldView
+                isLight={isLight}
+                penyulangList={penyulangMaster}
+                sectionsList={sectionMaster}
+              />
+            )}
+
           </div>
-        </div>
-      </main>
+        </main>
 
       {/* Modals */}
       <EntryFormModal
@@ -1665,17 +1372,7 @@ export default function App() {
         initialData={editingRecord}
       />
 
-      <InspectionFormModal
-        isOpen={isInspectionModalOpen}
-        onClose={() => setIsInspectionModalOpen(false)}
-        onSave={handleSaveRecord}
-      />
 
-      <GarduMeasurementFormModal
-        isOpen={false} // Handled within GarduMeasurementView
-        onClose={() => {}}
-        onSave={handleSaveRecord}
-      />
 
       <UserManagementModal
         isOpen={isUserModalOpen}

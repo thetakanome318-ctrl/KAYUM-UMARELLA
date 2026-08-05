@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle, AlertCircle, TreePine, ShieldAlert, PowerOff, Sparkles, CalendarDays, Compass } from 'lucide-react';
+import { X, CheckCircle, AlertCircle, TreePine, ShieldAlert, PowerOff, Sparkles, CalendarDays, Compass, QrCode } from 'lucide-react';
 import { ROWRecord, Penyulang, MasterSection } from '../types';
 import { BULAN_SIMPLE_LIST, YEAR_LIST } from '../data/mockData';
+import { QrScanner, parseQrContent } from './QrScanner';
 
 interface EntryFormModalProps {
   isOpen: boolean;
@@ -55,6 +56,7 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
   });
 
   const [errorMsg, setErrorMsg] = useState('');
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -275,6 +277,62 @@ export const EntryFormModal: React.FC<EntryFormModalProps> = ({
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
               <span>{errorMsg}</span>
             </div>
+          )}
+
+          {/* QR Code Scanner Trigger for mobile-friendly view */}
+          {!isReadOnly && (
+            <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-xl p-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-emerald-500/20 text-emerald-600 rounded-lg shrink-0">
+                  <QrCode className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800">Isi Form via QR Code</h4>
+                  <p className="text-[10px] text-slate-500">Pindai QR Code pada tiang atau section untuk isi otomatis.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsQrScannerOpen(true)}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-md transition-all flex items-center gap-1.5 shrink-0"
+              >
+                <QrCode className="w-3.5 h-3.5" />
+                <span>Scan QR</span>
+              </button>
+            </div>
+          )}
+
+          {isQrScannerOpen && (
+            <QrScanner
+              isLight={true}
+              onClose={() => setIsQrScannerOpen(false)}
+              onScanSuccess={(text) => {
+                const parsed = parseQrContent(text);
+                setFormData((prev) => {
+                  const updated = { ...prev };
+                  
+                  if (parsed.penyulang) {
+                    const foundP = penyulangList.find(p => p.nama.toLowerCase() === parsed.penyulang?.toLowerCase());
+                    updated.penyulang = foundP ? foundP.nama : parsed.penyulang;
+                  }
+                  
+                  if (parsed.section) {
+                    const foundS = sectionList.find(s => s.namaSection.toLowerCase() === parsed.section?.toLowerCase());
+                    updated.section = foundS ? foundS.namaSection : parsed.section;
+                  }
+
+                  if (parsed.kodeGardu) {
+                    updated.kodeGardu = parsed.kodeGardu;
+                  }
+                  if (parsed.kapasitas) {
+                    updated.kapasitas = parsed.kapasitas;
+                  }
+
+                  return updated;
+                });
+                setIsQrScannerOpen(false);
+              }}
+            />
           )}
 
           <fieldset disabled={isReadOnly} className="space-y-6">
